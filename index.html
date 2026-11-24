@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Suporte Remoto — Ottimize Tecnologia </title>
+  <title>Acesso Remoto - Ottimize Tecnologia</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Jura:wght@500;600;700&family=Michroma&display=swap" rel="stylesheet">
   <style>
     body {
       font-family: 'Inter', sans-serif;
@@ -56,6 +56,47 @@
     ::-webkit-scrollbar-track { background: #0f172a; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
     ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Animação de flutuação suave da logo no cabeçalho */
+    @keyframes logoFloat {
+      0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55), 0 0 0px rgba(56, 189, 248, 0);
+      }
+      50% {
+        transform: translateY(-4px) rotate(1.5deg);
+        box-shadow: 0 12px 22px rgba(0, 0, 0, 0.7), 0 0 14px rgba(56, 189, 248, 0.35);
+      }
+    }
+    .logo-float {
+      animation: logoFloat 3.2s ease-in-out infinite;
+      will-change: transform, box-shadow;
+      transition: transform 0.25s ease;
+    }
+    .logo-float:hover {
+      animation-play-state: paused;
+      transform: scale(1.06);
+    }
+
+    /* Ajustes para Modo Tela Cheia (Fullscreen) */
+    #videoStageContainer:fullscreen,
+    #videoStageContainer:-webkit-full-screen {
+      width: 100vw !important;
+      height: 100vh !important;
+      border-radius: 0 !important;
+      border: none !important;
+      background-color: #000000 !important;
+    }
+    #videoStageContainer:fullscreen #remoteVideo,
+    #videoStageContainer:-webkit-full-screen #remoteVideo {
+      max-height: 100vh !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+    #videoStageContainer:fullscreen #exitFullscreenBtn,
+    #videoStageContainer:-webkit-full-screen #exitFullscreenBtn {
+      display: flex !important;
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col selection:bg-sky-500/30">
@@ -66,13 +107,37 @@
   <!-- HEADER -->
   <header class="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-30">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
-          <i data-lucide="monitor-smartphone" class="w-5 h-5 text-white"></i>
+      <div class="flex items-center gap-3.5">
+        <!-- Logo original OTTIMIZE com efeito flutuante e fallback vetorial -->
+        <div class="logo-float w-16 h-16 rounded-xl bg-black border border-slate-800 flex items-center justify-center overflow-hidden shadow-lg shadow-black/50 shrink-0 cursor-pointer" title="OTTIMIZE — Soluções em TI">
+          <img
+            src="Ottimize.jpg"
+            alt="OTTIMIZE Soluções em TI"
+            class="w-full h-full object-contain"
+            onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');"
+          />
+          <svg class="hidden w-full h-full" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="OTTIMIZE Soluções em TI">
+            <rect width="120" height="120" fill="#000000" />
+            <!-- Monitor arredondado -->
+            <rect x="33" y="16" width="54" height="40" rx="8.5" stroke="#FFFFFF" stroke-width="5.2" />
+            <rect x="39.5" y="22.5" width="41" height="27" rx="3.5" fill="#FFFFFF" />
+            <!-- Cursor preto -->
+            <path d="M45 26L62 32.5L56.2 35.1L62.8 41.7A2 2 0 0 1 60 44.5L53.4 37.9L50.8 43.7Z" fill="#000000" />
+            <!-- Base do monitor -->
+            <rect x="51" y="61.5" width="18" height="4.2" rx="2.1" fill="#FFFFFF" />
+            <!-- Texto interno original da logo -->
+            <text x="60" y="88" text-anchor="middle" fill="#FFFFFF" font-family="'Michroma', sans-serif" font-size="14.5" letter-spacing="0.8">OTTIMIZE</text>
+            <text x="60" y="103" text-anchor="middle" fill="#E2E8F0" font-family="'Jura', sans-serif" font-weight="600" font-size="7.6" letter-spacing="1.6">SOLUÇÕES EM TI</text>
+          </svg>
         </div>
+        <!-- Título e subtítulo ao lado da logo -->
         <div>
-          <h1 class="text-base sm:text-lg font-bold tracking-tight text-white leading-tight">Acesso Remoto - Ottimize Tecnologia</h1>
-          <p class="text-[11px] sm:text-xs text-slate-400">Suporte Remoto Direto no Navegador</p>
+          <h1 class="text-base sm:text-lg font-bold text-white leading-tight tracking-tight">
+            Acesso Remoto - Ottimize Tecnologia
+          </h1>
+          <p class="text-xs text-slate-400 font-medium mt-0.5">
+            Suporte Remoto Direto no Navegador
+          </p>
         </div>
       </div>
 
@@ -321,6 +386,9 @@
           <button onclick="toggleVideoFit()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition flex items-center gap-1.5">
             <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i> <span id="fitModeText">Ajustar</span>
           </button>
+          <button id="btnFullscreen" onclick="toggleFullscreen()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition flex items-center gap-1.5">
+            <i data-lucide="expand" class="w-3.5 h-3.5 text-emerald-400"></i> <span id="fullscreenBtnText">Tela Cheia</span>
+          </button>
           <button onclick="captureScreenshot()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition flex items-center gap-1.5">
             <i data-lucide="camera" class="w-3.5 h-3.5 text-sky-400"></i> Print (PNG)
           </button>
@@ -331,8 +399,13 @@
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
 
         <!-- STAGE DE VÍDEO (9 colunas) -->
-        <div class="lg:col-span-9 rounded-2xl bg-black border border-slate-800 overflow-hidden relative min-h-[360px] sm:min-h-[520px] flex items-center justify-center">
+        <div id="videoStageContainer" class="lg:col-span-9 rounded-2xl bg-black border border-slate-800 overflow-hidden relative min-h-[360px] sm:min-h-[520px] flex items-center justify-center">
           <video id="remoteVideo" autoplay playsinline muted class="w-full h-full max-h-[70vh] object-contain select-none"></video>
+
+          <!-- Botão flutuante para sair da Tela Cheia -->
+          <button id="exitFullscreenBtn" onclick="toggleFullscreen()" class="hidden absolute top-4 right-4 z-50 px-3 py-1.5 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-white text-xs font-semibold border border-slate-700 shadow-lg backdrop-blur-md items-center gap-1.5 transition">
+            <i data-lucide="minimize-2" class="w-3.5 h-3.5 text-rose-400"></i> Sair da Tela Cheia
+          </button>
 
           <!-- Canvas de Desenho Livre -->
           <canvas id="drawCanvas" class="absolute inset-0 w-full h-full pointer-events-none z-20"></canvas>
@@ -1668,6 +1741,50 @@ while ($listener.IsListening) {
         txt.innerText = 'Ajustar';
       }
     };
+
+    window.toggleFullscreen = function() {
+      const stage = document.getElementById('videoStageContainer');
+      if (!stage) return;
+
+      const isFull = document.fullscreenElement || document.webkitFullscreenElement;
+      try {
+        if (!isFull) {
+          if (stage.requestFullscreen) {
+            stage.requestFullscreen();
+          } else if (stage.webkitRequestFullscreen) {
+            stage.webkitRequestFullscreen();
+          } else {
+            showToast("Seu navegador não suporta o modo Tela Cheia.", "error");
+          }
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+          }
+        }
+      } catch (err) {
+        showToast("Não foi possível alternar a Tela Cheia neste ambiente.", "error");
+      }
+    };
+
+    function handleFullscreenChange() {
+      const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      const btnText = document.getElementById('fullscreenBtnText');
+      if (btnText) {
+        btnText.innerText = isFull ? 'Sair Tela Cheia' : 'Tela Cheia';
+      }
+      setTimeout(() => {
+        resizeDrawCanvas();
+        if (isFull && activeTechTool === 'control') {
+          const layer = document.getElementById('techClickCapture');
+          if (layer) layer.focus();
+        }
+      }, 150);
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
     window.captureScreenshot = function() {
       const v = document.getElementById('remoteVideo');
