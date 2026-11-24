@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Suporte Remoto — Ottimize Tecnologia</title>
+  <title>AcessoWeb — Suporte WebRTC no Navegdor</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -56,26 +56,6 @@
     ::-webkit-scrollbar-track { background: #0f172a; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
     ::-webkit-scrollbar-thumb:hover { background: #475569; }
-
-    /* Ajustes para Modo Tela Cheia (Fullscreen) */
-    #videoStageContainer:fullscreen,
-    #videoStageContainer:-webkit-full-screen {
-      width: 100vw !important;
-      height: 100vh !important;
-      border-radius: 0 !important;
-      border: none !important;
-      background-color: #000000 !important;
-    }
-    #videoStageContainer:fullscreen #remoteVideo,
-    #videoStageContainer:-webkit-full-screen #remoteVideo {
-      max-height: 100vh !important;
-      width: 100% !important;
-      height: 100% !important;
-    }
-    #videoStageContainer:fullscreen #exitFullscreenBtn,
-    #videoStageContainer:-webkit-full-screen #exitFullscreenBtn {
-      display: flex !important;
-    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col selection:bg-sky-500/30">
@@ -341,9 +321,6 @@
           <button onclick="toggleVideoFit()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition flex items-center gap-1.5">
             <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i> <span id="fitModeText">Ajustar</span>
           </button>
-          <button id="btnFullscreen" onclick="toggleFullscreen()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition flex items-center gap-1.5">
-            <i data-lucide="expand" class="w-3.5 h-3.5 text-emerald-400"></i> <span id="fullscreenBtnText">Tela Cheia</span>
-          </button>
           <button onclick="captureScreenshot()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition flex items-center gap-1.5">
             <i data-lucide="camera" class="w-3.5 h-3.5 text-sky-400"></i> Print (PNG)
           </button>
@@ -354,13 +331,8 @@
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
 
         <!-- STAGE DE VÍDEO (9 colunas) -->
-        <div id="videoStageContainer" class="lg:col-span-9 rounded-2xl bg-black border border-slate-800 overflow-hidden relative min-h-[360px] sm:min-h-[520px] flex items-center justify-center">
+        <div class="lg:col-span-9 rounded-2xl bg-black border border-slate-800 overflow-hidden relative min-h-[360px] sm:min-h-[520px] flex items-center justify-center">
           <video id="remoteVideo" autoplay playsinline muted class="w-full h-full max-h-[70vh] object-contain select-none"></video>
-
-          <!-- Botão flutuante para sair da Tela Cheia -->
-          <button id="exitFullscreenBtn" onclick="toggleFullscreen()" class="hidden absolute top-4 right-4 z-50 px-3 py-1.5 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-white text-xs font-semibold border border-slate-700 shadow-lg backdrop-blur-md items-center gap-1.5 transition">
-            <i data-lucide="minimize-2" class="w-3.5 h-3.5 text-rose-400"></i> Sair da Tela Cheia
-          </button>
 
           <!-- Canvas de Desenho Livre -->
           <canvas id="drawCanvas" class="absolute inset-0 w-full h-full pointer-events-none z-20"></canvas>
@@ -1696,50 +1668,6 @@ while ($listener.IsListening) {
         txt.innerText = 'Ajustar';
       }
     };
-
-    window.toggleFullscreen = function() {
-      const stage = document.getElementById('videoStageContainer');
-      if (!stage) return;
-
-      const isFull = document.fullscreenElement || document.webkitFullscreenElement;
-      try {
-        if (!isFull) {
-          if (stage.requestFullscreen) {
-            stage.requestFullscreen();
-          } else if (stage.webkitRequestFullscreen) {
-            stage.webkitRequestFullscreen();
-          } else {
-            showToast("Seu navegador não suporta o modo Tela Cheia.", "error");
-          }
-        } else {
-          if (document.exitFullscreen) {
-            document.exitFullscreen();
-          } else if (document.webkitExitFullscreen) {
-            document.webkitExitFullscreen();
-          }
-        }
-      } catch (err) {
-        showToast("Não foi possível alternar a Tela Cheia neste ambiente.", "error");
-      }
-    };
-
-    function handleFullscreenChange() {
-      const isFull = !!(document.fullscreenElement || document.webkitFullscreenElement);
-      const btnText = document.getElementById('fullscreenBtnText');
-      if (btnText) {
-        btnText.innerText = isFull ? 'Sair Tela Cheia' : 'Tela Cheia';
-      }
-      setTimeout(() => {
-        resizeDrawCanvas();
-        if (isFull && activeTechTool === 'control') {
-          const layer = document.getElementById('techClickCapture');
-          if (layer) layer.focus();
-        }
-      }, 150);
-    }
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
     window.captureScreenshot = function() {
       const v = document.getElementById('remoteVideo');
