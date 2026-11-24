@@ -3,20 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AcessoWeb Remoto — Suporte WebRTC no Navegador</title>
-
+  <title>AcessoWeb Remoto — Suporte e Acesso via Navegador</title>
   <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
-
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <!-- Lucide Icons via CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
-
-  <!-- PeerJS (Sinalização WebRTC em Nuvem sem servidor próprio) -->
+  <!-- PeerJS (Sinalização WebRTC em Nuvem) -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
   <script>
@@ -24,435 +20,391 @@
       darkMode: 'class',
       theme: {
         extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          }
+          fontFamily: { sans: ['Inter', 'sans-serif'] }
         }
       }
     };
   </script>
 
   <style>
-    /* Estilização customizada para barra de rolagem e animações do ponteiro */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
+    /* Animação do Ponteiro Guia (Ping) */
+    @keyframes pointerPulse {
+      0% { transform: translate(-50%, -50%) scale(0.4); opacity: 1; }
+      70% { transform: translate(-50%, -50%) scale(1.6); opacity: 0.7; }
+      100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
     }
-    ::-webkit-scrollbar-track {
-      background: #0f172a;
+    .ping-ring {
+      animation: pointerPulse 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
     }
-    ::-webkit-scrollbar-thumb {
-      background: #334155;
-      border-radius: 9999px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #475569;
-    }
-
-    @keyframes pointerRipple {
-      0% {
-        transform: translate(-50%, -50%) scale(0.4);
-        opacity: 1;
-      }
-      70% {
-        transform: translate(-50%, -50%) scale(1.8);
-        opacity: 0.35;
-      }
-      100% {
-        transform: translate(-50%, -50%) scale(2.4);
-        opacity: 0;
-      }
-    }
-
-    .pointer-ring {
-      animation: pointerRipple 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    @keyframes fadeSlideUp {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .toast-enter {
-      animation: fadeSlideUp 0.25s ease-out forwards;
-    }
+    /* Scrollbar discreta */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
   </style>
 </head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col selection:bg-sky-500/30 selection:text-sky-200 overflow-x-hidden">
 
-<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-sky-500/30 selection:text-sky-200 overflow-x-hidden">
-
-  <!-- ========================================================= -->
-  <!-- HEADER / BARRA DE NAVEGAÇÃO SUPERIOR                      -->
-  <!-- ========================================================= -->
-  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+  <!-- ==================== CABEÇALHO SUPERIOR ==================== -->
+  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 sm:px-6 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <!-- Marca -->
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
           <i data-lucide="monitor-smartphone" class="w-5 h-5 text-white"></i>
         </div>
         <div>
-          <h1 class="text-base sm:text-lg font-bold tracking-tight text-white leading-tight flex items-center gap-2">
-            AcessoWeb Remoto
-            <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30">
-              WebRTC P2P
-            </span>
-          </h1>
-          <p class="text-xs text-slate-400">Suporte remoto direto no navegador, sem instalação</p>
+          <h1 class="text-base sm:text-lg font-bold tracking-tight text-white leading-tight">AcessoWeb Remoto</h1>
+          <p class="text-[11px] sm:text-xs text-slate-400">Suporte Remoto P2P via Navegador</p>
         </div>
       </div>
 
-      <!-- Status da Sinalização + Ações Rápidas -->
+      <!-- Status e Ações Globais -->
       <div class="flex flex-wrap items-center gap-2">
-        <!-- Botão de Status da Nuvem -->
-        <button onclick="toggleModal('modalModeSelect', true)"
-          class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 text-xs font-medium transition cursor-pointer"
-          title="Alterar modo de sinalização">
+        <!-- Badge de Status da Sinalização -->
+        <button onclick="toggleModal('modalModeSelect', true)" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/90 hover:bg-slate-800 border border-slate-700 text-xs font-medium text-slate-200 transition">
           <span id="signalingStatusDot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
-          <span id="signalingStatusText" class="text-slate-200">Verificando Nuvem...</span>
+          <span id="signalingStatusText">Conectando Nuvem...</span>
           <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
         </button>
 
-        <!-- Botão Como Ativar a Nuvem -->
-        <button onclick="toggleModal('modalCloudGuide', true)"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 text-xs font-semibold transition cursor-pointer">
-          <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
-          <span>Como Usar na Nuvem</span>
+        <!-- Botão de Controle Real (Agente Local) -->
+        <button onclick="toggleModal('modalControlAgent', true)" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold transition">
+          <i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5"></i>
+          <span>Controle Real (Mouse/Teclado)</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- ========================================================= -->
-  <!-- TELA INICIAL (HOME SCREEN)                                -->
-  <!-- ========================================================= -->
+  <!-- ==================== NOTIFICAÇÕES (TOASTS) ==================== -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-[calc(100vw-2rem)] pointer-events-none"></div>
+
+  <!-- ==================== TELA INICIAL (HOME) ==================== -->
   <main id="homeScreen" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10 flex flex-col gap-6">
 
-    <!-- Banner de Aviso quando estiver rodando dentro do Preview Sandbox -->
-    <div id="sandboxNoticeBanner" class="hidden rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <!-- Banner Explicativo de Controle e Teste Rápido -->
+    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 shadow-xl">
       <div class="flex items-start gap-3">
-        <div class="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
-          <i data-lucide="shield-alert" class="w-5 h-5"></i>
+        <div class="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center shrink-0 mt-0.5">
+          <i data-lucide="shield-check" class="w-5 h-5 text-sky-400"></i>
         </div>
         <div>
-          <h2 class="text-sm font-bold text-amber-200">Você está no Preview Sandbox (Nuvem bloqueada aqui)</h2>
-          <p class="text-xs text-amber-200/80 mt-1 leading-relaxed">
-            O ambiente de visualização bloqueia conexões externas (<code class="font-mono text-amber-300">wss://</code>).
-            Para acessar clientes reais pela internet usando a <strong>Nuvem WebRTC</strong>, baixe ou publique este arquivo em HTTPS (ex: Netlify Drop ou GitHub Pages — leva 30 segundos).
-            Aqui no preview, você pode testar tudo usando a <strong>Demo Integrada</strong>.
+          <h2 class="text-sm sm:text-base font-semibold text-white">Acesso WebRTC Criptografado Ponta a Ponta</h2>
+          <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
+            No navegador puro você tem <strong>Tela ao Vivo + Desenho + Ponteiro Guia + Chat</strong>. Para mexer no mouse e teclado real do cliente, ative o <strong>Mini-Agente Local</strong> no PC do cliente.
           </p>
         </div>
       </div>
-      <div class="flex flex-wrap items-center gap-2 shrink-0">
-        <button onclick="toggleModal('modalCloudGuide', true)" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
-          <i data-lucide="rocket" class="w-4 h-4"></i> Ver Passo a Passo Nuvem
-        </button>
-      </div>
-    </div>
-
-    <!-- Barra de Ferramentas / Testes Rápidos -->
-    <div class="rounded-2xl bg-slate-900/70 border border-slate-800 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <div class="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-400">
-          <i data-lucide="zap" class="w-5 h-5"></i>
-        </div>
-        <div>
-          <h2 class="text-sm font-semibold text-white">Modos de Conexão e Teste Rápido</h2>
-          <p class="text-xs text-slate-400">Teste agora em 1 clique ou escolha o método de sinalização para sua rede.</p>
-        </div>
-      </div>
 
       <div class="flex flex-wrap items-center gap-2 shrink-0">
-        <button onclick="startIntegratedLoopbackDemo()" class="px-3.5 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer">
+        <button onclick="startIntegratedLoopbackDemo()" class="px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
           <i data-lucide="play-circle" class="w-4 h-4"></i> Testar Demo Integrada
         </button>
-        <button onclick="switchToSignalingMode('local')" class="px-3.5 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer">
+        <button onclick="switchToSignalingMode('local')" class="px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
           <i data-lucide="app-window" class="w-4 h-4"></i> Modo Local (2 Abas)
         </button>
-        <button onclick="toggleModal('modalManualSDP', true)" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer">
+        <button onclick="toggleModal('modalManualSDP', true)" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
           <i data-lucide="code-2" class="w-4 h-4 text-sky-400"></i> Conexão SDP Manual
         </button>
       </div>
     </div>
 
-    <!-- Cards Principais: Técnico vs Cliente -->
+    <!-- Grid Principal: Técnico vs Cliente -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-      <!-- CARD 1: MODO TÉCNICO -->
-      <section class="rounded-3xl bg-slate-900/90 border border-slate-800 p-6 sm:p-8 flex flex-col justify-between shadow-xl shadow-black/20 relative overflow-hidden">
-        <div class="absolute top-0 right-0 w-40 h-40 bg-sky-500/10 blur-3xl rounded-full pointer-events-none"></div>
-
+      <!-- CARTÃO 1: MODO TÉCNICO -->
+      <section class="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-40 h-40 bg-sky-500/5 rounded-full blur-3xl pointer-events-none"></div>
         <div>
           <div class="flex items-center justify-between gap-2 mb-5">
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30 text-xs font-semibold">
-              <i data-lucide="headset" class="w-3.5 h-3.5"></i> Modo Técnico
+            <span class="px-3 py-1 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-300 text-xs font-bold uppercase tracking-wider">
+              Modo Técnico
             </span>
-            <span id="techModeLabel" class="text-[11px] font-medium text-slate-400">Sinalização: PeerJS Nuvem</span>
+            <span id="techModeLabel" class="text-xs text-slate-400">Sinalização: PeerJS Nuvem</span>
           </div>
 
-          <h2 class="text-2xl font-bold text-white tracking-tight">Acessar Tela do Cliente</h2>
-          <p class="text-sm text-slate-400 mt-2 leading-relaxed">
-            Peça ao cliente o código de 6 dígitos exibido na tela dele e conecte-se para visualizar, enviar orientações visuais e conversar pelo chat.
+          <h2 class="text-xl sm:text-2xl font-bold text-white mb-2">Acessar Computador do Cliente</h2>
+          <p class="text-sm text-slate-400 mb-6">
+            Digite o código de 6 dígitos informado pelo cliente para visualizar a tela, desenhar instruções ou controlar o computador.
           </p>
 
-          <div class="mt-6 space-y-3">
-            <label for="inputSessionCode" class="block text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Código de Acesso do Cliente
-            </label>
-            <div class="flex flex-col sm:flex-row gap-3">
-              <input id="inputSessionCode" type="text" maxlength="7" placeholder="Ex: 482-915"
-                class="flex-1 bg-slate-950 border border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 rounded-xl px-4 py-3.5 text-lg font-mono font-bold tracking-widest text-white placeholder-slate-600 outline-none transition uppercase" />
-              <button onclick="connectAsTech()"
-                class="px-6 py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-semibold rounded-xl shadow-lg shadow-sky-500/20 transition flex items-center justify-center gap-2 cursor-pointer shrink-0">
-                <i data-lucide="plug-zap" class="w-4 h-4"></i>
-                <span>Conectar</span>
-              </button>
-            </div>
+          <label for="inputSessionCode" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+            Código da Sessão do Cliente
+          </label>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <input
+              id="inputSessionCode"
+              type="text"
+              maxlength="7"
+              placeholder="Ex: 482-915"
+              class="flex-1 bg-slate-950 border border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 rounded-xl px-4 py-3.5 text-center sm:text-left text-xl font-mono font-bold tracking-widest text-white placeholder-slate-600 outline-none transition"
+            />
+            <button
+              onclick="connectAsTech()"
+              class="px-6 py-3.5 bg-sky-600 hover:bg-sky-500 active:scale-[0.99] text-white font-semibold rounded-xl shadow-lg shadow-sky-600/25 transition flex items-center justify-center gap-2 shrink-0"
+            >
+              <i data-lucide="plug-zap" class="w-5 h-5"></i>
+              <span>Conectar</span>
+            </button>
           </div>
         </div>
 
-        <div class="mt-8 pt-5 border-t border-slate-800/80 grid grid-cols-3 gap-3 text-center">
-          <div class="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/60">
+        <div class="mt-6 pt-5 border-t border-slate-800/80 grid grid-cols-3 gap-2 text-center">
+          <div class="bg-slate-950/60 rounded-xl p-2.5 border border-slate-800/60">
             <i data-lucide="crosshair" class="w-4 h-4 text-sky-400 mx-auto mb-1"></i>
             <p class="text-[11px] text-slate-300 font-medium">Ponteiro Guia</p>
           </div>
-          <div class="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/60">
-            <i data-lucide="camera" class="w-4 h-4 text-sky-400 mx-auto mb-1"></i>
-            <p class="text-[11px] text-slate-300 font-medium">Print PNG</p>
+          <div class="bg-slate-950/60 rounded-xl p-2.5 border border-slate-800/60">
+            <i data-lucide="pen-tool" class="w-4 h-4 text-purple-400 mx-auto mb-1"></i>
+            <p class="text-[11px] text-slate-300 font-medium">Desenho ao Vivo</p>
           </div>
-          <div class="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/60">
-            <i data-lucide="message-square" class="w-4 h-4 text-sky-400 mx-auto mb-1"></i>
-            <p class="text-[11px] text-slate-300 font-medium">Chat P2P</p>
+          <div class="bg-slate-950/60 rounded-xl p-2.5 border border-slate-800/60">
+            <i data-lucide="mouse-pointer-2" class="w-4 h-4 text-amber-400 mx-auto mb-1"></i>
+            <p class="text-[11px] text-slate-300 font-medium">Controle Real*</p>
           </div>
         </div>
       </section>
 
-      <!-- CARD 2: MODO CLIENTE -->
-      <section class="rounded-3xl bg-slate-900/90 border border-slate-800 p-6 sm:p-8 flex flex-col justify-between shadow-xl shadow-black/20 relative overflow-hidden">
-        <div class="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none"></div>
-
+      <!-- CARTÃO 2: MODO CLIENTE -->
+      <section class="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 flex flex-col justify-between shadow-2xl relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
         <div>
           <div class="flex items-center justify-between gap-2 mb-5">
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-semibold">
-              <i data-lucide="screen-share" class="w-3.5 h-3.5"></i> Modo Cliente
+            <span class="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold uppercase tracking-wider">
+              Modo Cliente
             </span>
-            <span id="hostModeLabel" class="text-[11px] font-medium text-slate-400">Sinalização: PeerJS Nuvem</span>
+            <span id="hostModeLabel" class="text-xs text-slate-400">Sinalização: PeerJS Nuvem</span>
           </div>
 
-          <h2 class="text-2xl font-bold text-white tracking-tight">Compartilhar Minha Tela</h2>
-          <p class="text-sm text-slate-400 mt-2 leading-relaxed">
-            Informe o código abaixo ao técnico e clique em compartilhar. Você pode interromper a transmissão a qualquer momento com total segurança.
+          <h2 class="text-xl sm:text-2xl font-bold text-white mb-2">Receber Suporte Remoto</h2>
+          <p class="text-sm text-slate-400 mb-5">
+            Informe o código abaixo ao técnico e clique em <strong>Compartilhar Tela Real</strong>.
           </p>
 
           <!-- Box do Código Gerado -->
-          <div class="mt-6 p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3">
+          <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 mb-5 flex items-center justify-between gap-3">
             <div>
-              <p class="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Seu Código de Sessão</p>
-              <p id="generatedCodeDisplay" class="text-3xl sm:text-4xl font-mono font-extrabold tracking-widest text-emerald-400 mt-0.5">
-                --- ---
-              </p>
+              <p class="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Seu Código de Acesso</p>
+              <p id="displayClientCode" class="text-3xl sm:text-4xl font-mono font-extrabold tracking-widest text-emerald-400 mt-0.5">---</p>
             </div>
             <div class="flex items-center gap-2">
-              <button onclick="copyGeneratedCode()" title="Copiar código"
-                class="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer">
-                <i data-lucide="copy" class="w-4 h-4"></i>
+              <button onclick="copyClientCode()" title="Copiar código" class="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition">
+                <i data-lucide="copy" class="w-5 h-5"></i>
               </button>
-              <button onclick="regenerateClientCode()" title="Gerar novo código"
-                class="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer">
-                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+              <button onclick="regenerateClientCode()" title="Gerar novo código" class="p-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition">
+                <i data-lucide="refresh-cw" class="w-5 h-5"></i>
               </button>
             </div>
           </div>
 
           <!-- Botões de Compartilhamento -->
-          <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button onclick="startHostSharing(false)"
-              class="px-5 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2 cursor-pointer">
-              <i data-lucide="monitor-up" class="w-4 h-4"></i>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              onclick="startHostSharing(false)"
+              class="px-5 py-3.5 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-semibold rounded-xl shadow-lg shadow-emerald-600/25 transition flex items-center justify-center gap-2"
+            >
+              <i data-lucide="screen-share" class="w-5 h-5"></i>
               <span>Compartilhar Tela Real</span>
             </button>
-            <button onclick="startHostSharing(true)"
-              class="px-5 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer">
-              <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+            <button
+              onclick="startHostSharing(true)"
+              class="px-5 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold rounded-xl transition flex items-center justify-center gap-2"
+            >
+              <i data-lucide="monitor-play" class="w-5 h-5 text-sky-400"></i>
               <span>Tela Simulada (Demo)</span>
             </button>
           </div>
         </div>
 
-        <div class="mt-8 pt-5 border-t border-slate-800/80 flex items-center gap-2 text-xs text-slate-400">
-          <i data-lucide="lock" class="w-4 h-4 text-emerald-400 shrink-0"></i>
-          <span>Criptografia ponta a ponta WebRTC (DTLS/SRTP). Nenhum arquivo é instalado no computador.</span>
+        <!-- Barra de Status do Agente Local no Cliente -->
+        <div class="mt-6 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2 text-xs">
+            <span id="agentDotHome" class="w-2.5 h-2.5 rounded-full bg-slate-600"></span>
+            <span id="agentStatusHome" class="text-slate-400">Agente de Controle Real: Desconectado</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="connectLocalControlAgent()" class="text-xs font-semibold text-sky-400 hover:text-sky-300 transition">
+              Conectar Agente
+            </button>
+            <span class="text-slate-700">|</span>
+            <button onclick="toggleModal('modalControlAgent', true)" class="text-xs font-semibold text-amber-400 hover:text-amber-300 transition">
+              Baixar Agente
+            </button>
+          </div>
         </div>
       </section>
     </div>
   </main>
 
-  <!-- ========================================================= -->
-  <!-- TELA DE SESSÃO AO VIVO (LIVE VIEW)                        -->
-  <!-- ========================================================= -->
-  <section id="liveSessionContainer" class="hidden flex-1 flex flex-col max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 gap-4">
+  <!-- ==================== TELA DE SESSÃO AO VIVO ==================== -->
+  <section id="liveSessionContainer" class="hidden flex-1 flex flex-col max-w-[1600px] w-full mx-auto px-3 sm:px-5 py-4 gap-4">
 
-    <!-- Barra Superior de Telemetria da Sessão -->
-    <div class="rounded-2xl bg-slate-900 border border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+    <!-- Barra Superior da Sessão -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-wrap items-center gap-3">
-        <span id="roleBadge" class="px-2.5 py-1 rounded-lg bg-sky-500/15 text-sky-400 border border-sky-500/30 text-xs font-bold tracking-wide">
-          TÉCNICO
-        </span>
-        <div class="flex items-center gap-2 text-xs font-mono text-slate-300 bg-slate-950 px-3 py-1 rounded-lg border border-slate-800">
-          <span class="text-slate-500">SALA:</span>
-          <span id="liveRoomCode" class="font-bold text-white">000-000</span>
-        </div>
-        <div class="flex items-center gap-1.5 text-xs">
+        <span id="liveRoleBadge" class="px-2.5 py-1 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-500/30 text-xs font-bold uppercase">TÉCNICO</span>
+        <span class="text-sm font-mono font-bold text-white" id="liveCodeDisplay">000-000</span>
+        <div class="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs">
           <span id="connStatusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-          <span id="connStatusText" class="text-slate-300 font-medium">Aguardando conexão...</span>
+          <span id="connStatusText" class="text-slate-300">Conectando...</span>
         </div>
       </div>
 
-      <!-- Telemetria (Tempo, Ping, Resolução) e Encerrar -->
-      <div class="flex flex-wrap items-center gap-3 text-xs font-mono">
-        <div class="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 flex items-center gap-1.5">
-          <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400"></i>
-          <span id="sessionTimer">00:00</span>
-        </div>
-        <div class="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 flex items-center gap-1.5">
-          <i data-lucide="activity" class="w-3.5 h-3.5 text-emerald-400"></i>
-          <span id="pingVal">-- ms</span>
-        </div>
-        <div class="hidden sm:flex px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 items-center gap-1.5">
-          <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-sky-400"></i>
-          <span id="resVal">-- x --</span>
-        </div>
-        <button onclick="disconnectSession()"
-          class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-sans font-semibold rounded-xl transition flex items-center gap-1.5 cursor-pointer">
-          <i data-lucide="phone-off" class="w-3.5 h-3.5"></i>
-          <span>Encerrar</span>
+      <!-- Telemetria e Botão Encerrar -->
+      <div class="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+        <span class="hidden sm:inline-flex items-center gap-1"><i data-lucide="maximize-2" class="w-3.5 h-3.5"></i> <span id="resVal">-- x --</span></span>
+        <span class="inline-flex items-center gap-1"><i data-lucide="activity" class="w-3.5 h-3.5 text-emerald-400"></i> <span id="pingVal">-- ms</span></span>
+        <span class="inline-flex items-center gap-1 font-mono"><i data-lucide="clock" class="w-3.5 h-3.5"></i> <span id="timerVal">00:00</span></span>
+        <button onclick="disconnectSession()" class="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold transition flex items-center gap-1.5">
+          <i data-lucide="phone-off" class="w-4 h-4"></i> Encerrar
         </button>
       </div>
     </div>
 
-    <!-- Área Principal: Player de Vídeo + Painel Lateral de Chat -->
-    <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-[520px]">
+    <!-- Barra de Ferramentas Interativas do Técnico -->
+    <div id="techToolbar" class="hidden bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-semibold text-slate-400 mr-1">Ferramenta:</span>
 
-      <!-- COLUNA DO VÍDEO (8 colunas no desktop) -->
-      <div class="lg:col-span-8 flex flex-col gap-3">
-        <!-- Container do Player -->
-        <div id="videoStage" class="relative flex-1 min-h-[360px] sm:min-h-[460px] rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden flex items-center justify-center shadow-inner">
-          <video id="remoteVideo" autoplay playsinline muted class="w-full h-full object-contain bg-black"></video>
+        <button id="btnToolPointer" onclick="setActiveTool('pointer')" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 bg-sky-600 text-white">
+          <i data-lucide="crosshair" class="w-3.5 h-3.5"></i> Ponteiro Guia
+        </button>
 
-          <!-- Placeholder quando aguardando stream -->
-          <div id="videoPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-slate-950/90 z-10">
-            <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-4">
-              <i data-lucide="loader-2" class="w-8 h-8 text-sky-400 animate-spin"></i>
-            </div>
-            <h3 class="text-base font-bold text-white">Estabelecendo transmissão WebRTC...</h3>
-            <p class="text-xs text-slate-400 max-w-sm mt-1.5">
-              Aguardando o vídeo do cliente chegar pelo túnel P2P. Certifique-se de que o cliente autorizou o compartilhamento da tela.
-            </p>
+        <button id="btnToolDraw" onclick="setActiveTool('draw')" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 bg-slate-800 text-slate-300 hover:bg-slate-700">
+          <i data-lucide="pen-tool" class="w-3.5 h-3.5"></i> Desenhar na Tela
+        </button>
+
+        <button id="btnToolControl" onclick="setActiveTool('control')" class="px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 bg-slate-800 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20">
+          <i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5"></i> Controle Real (Mouse/Teclado)
+        </button>
+
+        <button onclick="clearRemoteAnnotations(true)" class="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center gap-1">
+          <i data-lucide="eraser" class="w-3.5 h-3.5"></i> Limpar Desenhos
+        </button>
+      </div>
+
+      <!-- Rótulo do Ponteiro e Ações do Player -->
+      <div class="flex flex-wrap items-center gap-2">
+        <select id="pointerLabelSelect" class="bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 outline-none">
+          <option value="Clique Aqui">Rótulo: Clique Aqui</option>
+          <option value="Digite Aqui">Rótulo: Digite Aqui</option>
+          <option value="Atenção">Rótulo: Atenção</option>
+          <option value="Confirme">Rótulo: Confirme</option>
+        </select>
+
+        <button onclick="toggleVideoFit()" title="Alternar ajuste de tela" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+          <i data-lucide="scaling" class="w-4 h-4"></i>
+        </button>
+        <button onclick="captureScreenshot()" title="Salvar Print (PNG)" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+          <i data-lucide="camera" class="w-4 h-4"></i>
+        </button>
+        <button onclick="toggleFullscreen()" title="Tela Cheia" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+          <i data-lucide="maximize" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Aviso de Status de Controle Real (aparece quando modo Controle está ativo) -->
+    <div id="controlStatusBanner" class="hidden bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-200">
+      <div class="flex items-center gap-2">
+        <i data-lucide="info" class="w-4 h-4 text-amber-400 shrink-0"></i>
+        <span id="controlBannerText">
+          Modo Controle Real ativo: cliques, movimento do mouse e teclas digitadas sobre o vídeo estão sendo enviados ao cliente.
+        </span>
+      </div>
+      <button onclick="toggleModal('modalControlAgent', true)" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-semibold transition">
+        Ver Mini-Agente
+      </button>
+    </div>
+
+    <!-- Área Principal: Vídeo + Chat -->
+    <div class="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-4 min-h-[520px]">
+
+      <!-- VIEWPORT DO VÍDEO (3 colunas) -->
+      <div id="videoStageWrapper" tabindex="0" class="lg:col-span-3 bg-slate-950 border border-slate-800 rounded-2xl relative overflow-hidden flex items-center justify-center min-h-[360px] lg:min-h-[560px] outline-none focus:ring-2 focus:ring-sky-500/40 select-none">
+
+        <!-- Vídeo Remoto (Técnico) ou Preview Local (Cliente) -->
+        <video id="remoteVideo" autoplay playsinline muted class="w-full h-full object-contain bg-black"></video>
+
+        <!-- Canvas de Anotações/Desenho Livre sincronizado -->
+        <canvas id="annotationCanvas" class="absolute inset-0 w-full h-full pointer-events-none z-20"></canvas>
+
+        <!-- Cursor Virtual do Técnico (espelhado na tela) -->
+        <div id="remoteVirtualCursor" class="hidden absolute z-30 pointer-events-none transition-transform duration-75" style="left: 50%; top: 50%;">
+          <div class="flex items-start gap-1">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#38bdf8" stroke="#0f172a" stroke-width="2">
+              <path d="M4 2l16 10-7 2-3 7L4 2z"/>
+            </svg>
+            <span class="px-1.5 py-0.5 rounded bg-sky-600 text-[10px] font-bold text-white shadow">Técnico</span>
           </div>
-
-          <!-- Overlay do Cliente (Host) -->
-          <div id="hostPreviewOverlay" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-slate-950/90 z-10">
-            <div class="w-16 h-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mb-4">
-              <i data-lucide="radio" class="w-8 h-8 text-emerald-400 animate-pulse"></i>
-            </div>
-            <h3 class="text-lg font-bold text-white">Sua tela está sendo compartilhada</h3>
-            <p class="text-xs text-slate-400 max-w-md mt-2">
-              O técnico pode visualizar sua tela e enviar marcações visuais (ponteiro pulsante) abaixo. Use o chat ao lado para conversar.
-            </p>
-          </div>
-
-          <!-- Camada de Captura de Clique do Técnico (Ponteiro Visual) -->
-          <div id="techClickCapture" class="hidden absolute inset-0 z-20 cursor-crosshair"></div>
-
-          <!-- Camada onde os anéis pulsantes aparecem -->
-          <div id="pointerOverlayLayer" class="absolute inset-0 z-30 pointer-events-none overflow-hidden"></div>
         </div>
 
-        <!-- Barra de Ferramentas do Vídeo -->
-        <div class="rounded-2xl bg-slate-900 border border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
-          <div class="flex flex-wrap items-center gap-2">
-            <button id="btnTogglePointer" onclick="togglePointerTool()"
-              class="px-3 py-1.5 rounded-xl bg-sky-500/20 text-sky-300 border border-sky-500/40 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
-              <i data-lucide="crosshair" class="w-3.5 h-3.5"></i>
-              <span>Ponteiro Guia: ON</span>
-            </button>
+        <!-- Camada de Pings Animados -->
+        <div id="pingLayer" class="absolute inset-0 pointer-events-none z-30 overflow-hidden"></div>
 
-            <select id="pointerLabelSelect"
-              class="bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-xl px-3 py-1.5 outline-none focus:border-sky-500">
-              <option value="Clique Aqui">Tag: Clique Aqui</option>
-              <option value="Verifique este campo">Tag: Verifique este campo</option>
-              <option value="Atenção!">Tag: Atenção!</option>
-              <option value="Abra este menu">Tag: Abra este menu</option>
-            </select>
+        <!-- Camada de Captura de Interações do Técnico -->
+        <div id="techInteractionLayer" class="hidden absolute inset-0 z-25 cursor-crosshair"></div>
+
+        <!-- Placeholder enquanto aguarda vídeo -->
+        <div id="videoPlaceholder" class="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-6 bg-slate-950/90">
+          <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-4">
+            <i data-lucide="radio" class="w-8 h-8 text-sky-400 animate-pulse"></i>
+          </div>
+          <h3 class="text-lg font-bold text-white mb-1">Aguardando Transmissão de Vídeo...</h3>
+          <p class="text-sm text-slate-400 max-w-md">
+            Assim que a conexão WebRTC P2P for concluída, a tela aparecerá aqui em tempo real.
+          </p>
+        </div>
+
+        <!-- Overlay informativo para o CLIENTE -->
+        <div id="hostPreviewOverlay" class="hidden absolute top-3 left-3 right-3 z-30 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+          <div class="bg-slate-900/90 backdrop-blur border border-emerald-500/40 rounded-xl px-3.5 py-2 flex items-center gap-2.5 pointer-events-auto shadow-lg">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-xs font-semibold text-emerald-200">Sua tela está sendo compartilhada</span>
           </div>
 
-          <div class="flex items-center gap-2">
-            <button onclick="toggleVideoFit()" title="Alternar ajuste do vídeo"
-              class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition cursor-pointer">
-              <i data-lucide="scaling" class="w-3.5 h-3.5"></i>
-              <span id="fitModeText">Ajustar</span>
-            </button>
-            <button onclick="captureScreenshot()" title="Salvar captura de tela (PNG)"
-              class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition cursor-pointer">
-              <i data-lucide="camera" class="w-3.5 h-3.5 text-emerald-400"></i>
-              <span>Print</span>
-            </button>
-            <button onclick="toggleFullscreen()" title="Tela cheia"
-              class="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition cursor-pointer">
-              <i data-lucide="maximize" class="w-4 h-4"></i>
-            </button>
+          <div class="bg-slate-900/90 backdrop-blur border border-slate-700 rounded-xl px-3 py-1.5 flex items-center gap-2 pointer-events-auto shadow-lg">
+            <span id="agentDotLive" class="w-2 h-2 rounded-full bg-slate-500"></span>
+            <span id="agentStatusLive" class="text-[11px] text-slate-300">Agente Mouse/Teclado: Off</span>
+            <button onclick="connectLocalControlAgent()" class="text-[11px] font-bold text-sky-400 hover:underline">Conectar</button>
           </div>
         </div>
       </div>
 
-      <!-- COLUNA DO CHAT P2P (4 colunas no desktop) -->
-      <aside class="lg:col-span-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col overflow-hidden min-h-[380px] max-h-[600px]">
+      <!-- PAINEL LATERAL: CHAT E TRANSFERÊNCIA DE TEXTO (1 coluna) -->
+      <aside class="bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden min-h-[380px] max-h-[650px]">
         <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
           <div class="flex items-center gap-2">
             <i data-lucide="messages-square" class="w-4 h-4 text-sky-400"></i>
-            <h3 class="text-sm font-bold text-white">Chat da Sessão (P2P)</h3>
+            <h3 class="text-sm font-bold text-white">Chat e Comandos</h3>
           </div>
-          <span class="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-            Tempo Real
-          </span>
+          <span class="text-[11px] text-slate-400">P2P DataChannel</span>
         </div>
 
-        <!-- Lista de Mensagens -->
-        <div id="chatMessages" class="flex-1 p-4 space-y-3 overflow-y-auto text-sm">
-          <div class="text-center text-xs text-slate-500 py-2">
-            As mensagens são trocadas diretamente entre os navegadores via WebRTC DataChannel.
+        <!-- Mensagens -->
+        <div id="chatMessages" class="flex-1 overflow-y-auto p-3.5 space-y-2.5 text-sm">
+          <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3 text-xs text-slate-400 text-center">
+            O chat ao vivo e o envio de comandos funcionam diretamente entre os navegadores.
           </div>
         </div>
 
-        <!-- Respostas Rápidas do Técnico -->
-        <div id="quickMacrosContainer" class="px-3 py-2 border-t border-slate-800/80 flex flex-wrap gap-1.5 bg-slate-950/40">
-          <button onclick="sendQuickReply('Por favor, clique no local indicado pelo círculo azul.')"
-            class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer">
-            Clique no círculo
-          </button>
-          <button onclick="sendQuickReply('Pode atualizar a página (F5) por favor?')"
-            class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer">
-            Atualizar (F5)
-          </button>
-          <button onclick="sendQuickReply('Tudo certo! Problema resolvido.')"
-            class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer">
-            Resolvido
-          </button>
+        <!-- Macros Rápidas do Técnico -->
+        <div id="quickMacrosContainer" class="px-3 py-2 border-t border-slate-800/70 flex flex-wrap gap-1.5 bg-slate-950/40">
+          <button onclick="sendQuickMacro('Por favor, clique no local marcado na tela.')" class="text-[11px] px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Clique no marcador</button>
+          <button onclick="sendQuickMacro('Pode digitar sua senha agora?')" class="text-[11px] px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Digitar senha</button>
+          <button onclick="sendQuickMacro('Tudo resolvido! Posso encerrar?')" class="text-[11px] px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Tudo resolvido?</button>
         </div>
 
-        <!-- Campo de Envio -->
-        <form onsubmit="handleChatSubmit(event)" class="p-3 border-t border-slate-800 flex items-center gap-2 bg-slate-950/60">
-          <input id="chatInput" type="text" placeholder="Digite uma mensagem..."
-            class="flex-1 bg-slate-900 border border-slate-700 focus:border-sky-500 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 outline-none" />
-          <button type="submit"
-            class="p-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white transition cursor-pointer">
+        <!-- Input do Chat -->
+        <form onsubmit="handleSendChat(event)" class="p-3 border-t border-slate-800 flex items-center gap-2 bg-slate-950/60">
+          <input
+            id="chatInput"
+            type="text"
+            placeholder="Digite uma mensagem ou comando..."
+            class="flex-1 bg-slate-900 border border-slate-700 focus:border-sky-500 rounded-xl px-3 py-2 text-xs sm:text-sm text-white placeholder-slate-500 outline-none"
+          />
+          <button type="submit" class="p-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white transition shrink-0">
             <i data-lucide="send" class="w-4 h-4"></i>
           </button>
         </form>
@@ -460,209 +412,233 @@
     </div>
   </section>
 
-  <!-- ========================================================= -->
-  <!-- MODAL 1: COMO CONECTAR NA NUVEM (GUIA DE PUBLICAÇÃO)      -->
-  <!-- ========================================================= -->
-  <div id="modalCloudGuide" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-        <div class="flex items-center gap-2.5">
-          <div class="p-2 rounded-xl bg-sky-500/15 text-sky-400">
-            <i data-lucide="cloud" class="w-5 h-5"></i>
+  <!-- ==================== MODAL: AGENTE DE CONTROLE REAL (MOUSE/TECLADO) ==================== -->
+  <div id="modalControlAgent" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6">
+      <div class="flex items-start justify-between gap-3 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+            <i data-lucide="mouse-pointer-click" class="w-5 h-5 text-amber-400"></i>
           </div>
-          <h3 class="text-lg font-bold text-white">Como Ativar a Nuvem WebRTC</h3>
+          <div>
+            <h3 class="text-lg font-bold text-white">Como Ativar Controle Real (Mouse e Teclado)</h3>
+            <p class="text-xs text-slate-400">Ponte segura entre o navegador e o sistema operacional do cliente</p>
+          </div>
         </div>
-        <button onclick="toggleModal('modalCloudGuide', false)" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 cursor-pointer">
+        <button onclick="toggleModal('modalControlAgent', false)" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
 
-      <div class="mt-4 space-y-4 text-sm text-slate-300 leading-relaxed">
-        <p class="text-xs text-slate-400">
-          Este site já vem configurado com a <strong>Nuvem PeerJS</strong> integrada (gratuita e sem precisar configurar banco de dados).
-          Para acessar clientes reais em outros computadores pela internet, você só precisa abrir este arquivo em um endereço <strong>HTTPS</strong> real:
-        </p>
-
-        <div class="space-y-3">
-          <div class="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
-            <p class="font-bold text-emerald-400 text-xs uppercase tracking-wider">Passo 1 — Salve este arquivo</p>
-            <p class="text-xs text-slate-300 mt-1">
-              Copie o código deste arquivo e salve no seu computador como <code class="font-mono bg-slate-800 px-1.5 py-0.5 rounded text-sky-300">index.html</code> (dentro de uma pasta vazia, ex: <code class="font-mono text-slate-400">acessoweb</code>).
-            </p>
-          </div>
-
-          <div class="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
-            <p class="font-bold text-sky-400 text-xs uppercase tracking-wider">Passo 2 — Publique grátis em 30 segundos (HTTPS)</p>
-            <ul class="text-xs text-slate-300 mt-1.5 space-y-1.5 list-disc list-inside">
-              <li><strong>Netlify Drop</strong> (mais rápido): acesse <code class="font-mono text-sky-300">app.netlify.com/drop</code> e arraste a pasta com o <code class="font-mono">index.html</code>. Ele gera um link HTTPS na hora!</li>
-              <li><strong>GitHub Pages / Vercel / Cloudflare Pages</strong>: suba o <code class="font-mono">index.html</code> e ative o Pages.</li>
-            </ul>
-          </div>
-
-          <div class="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
-            <p class="font-bold text-purple-400 text-xs uppercase tracking-wider">Passo 3 — Conecte-se ao cliente</p>
-            <p class="text-xs text-slate-300 mt-1">
-              Envie o seu link HTTPS para o cliente. O indicador no topo ficará verde (<strong>Nuvem WebRTC: Online</strong>). O cliente clica em <em>Compartilhar Tela Real</em>, te passa o código de 6 dígitos e você conecta no Modo Técnico!
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div class="mt-6 flex justify-end gap-2">
-        <button onclick="forceCloudConnection()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer">
-          Tentar Conectar Nuvem Agora
-        </button>
-        <button onclick="toggleModal('modalCloudGuide', false)" class="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition cursor-pointer">
-          Entendi
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========================================================= -->
-  <!-- MODAL 2: SELETOR DE MODO DE SINALIZAÇÃO                   -->
-  <!-- ========================================================= -->
-  <div id="modalModeSelect" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 shadow-2xl">
-      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-        <h3 class="text-base font-bold text-white">Motor de Sinalização WebRTC</h3>
-        <button onclick="toggleModal('modalModeSelect', false)" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 cursor-pointer">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
-
-      <div class="mt-4 space-y-3">
-        <button onclick="switchToSignalingMode('cloud')" class="w-full text-left p-4 rounded-2xl bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-emerald-500/40 transition cursor-pointer">
-          <div class="flex items-center justify-between">
-            <span class="font-bold text-sm text-emerald-400 flex items-center gap-2">
-              <i data-lucide="cloud" class="w-4 h-4"></i> Nuvem WebRTC (PeerJS)
-            </span>
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300">Internet</span>
-          </div>
-          <p class="text-xs text-slate-400 mt-1">Conecta computadores diferentes pela internet usando o código de 6 dígitos (requer abrir fora do sandbox).</p>
-        </button>
-
-        <button onclick="switchToSignalingMode('local')" class="w-full text-left p-4 rounded-2xl bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-purple-500/40 transition cursor-pointer">
-          <div class="flex items-center justify-between">
-            <span class="font-bold text-sm text-purple-400 flex items-center gap-2">
-              <i data-lucide="app-window" class="w-4 h-4"></i> Modo Local (BroadcastChannel)
-            </span>
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300">2 Abas</span>
-          </div>
-          <p class="text-xs text-slate-400 mt-1">Ideal para testar abrindo 2 abas do navegador no mesmo computador, sem precisar de servidor.</p>
-        </button>
-
-        <button onclick="toggleModal('modalModeSelect', false); toggleModal('modalManualSDP', true);" class="w-full text-left p-4 rounded-2xl bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-sky-500/40 transition cursor-pointer">
-          <div class="flex items-center justify-between">
-            <span class="font-bold text-sm text-sky-400 flex items-center gap-2">
-              <i data-lucide="code-2" class="w-4 h-4"></i> Conexão Manual (SDP Base64)
-            </span>
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300">Sem Servidor</span>
-          </div>
-          <p class="text-xs text-slate-400 mt-1">Troca manual de código de oferta/resposta (via WhatsApp/Email) para redes com firewall restrito.</p>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========================================================= -->
-  <!-- MODAL 3: CONEXÃO SDP MANUAL (BASE64)                      -->
-  <!-- ========================================================= -->
-  <div id="modalManualSDP" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-        <div class="flex items-center gap-2">
-          <i data-lucide="code-2" class="w-5 h-5 text-sky-400"></i>
-          <h3 class="text-base font-bold text-white">Conexão Direta P2P Manual (Sem Servidor)</h3>
-        </div>
-        <button onclick="toggleModal('modalManualSDP', false)" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 cursor-pointer">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
-
-      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-        <!-- Lado Cliente (Host) -->
-        <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
-          <h4 class="font-bold text-emerald-400">1. Lado do Cliente (Gera Oferta)</h4>
-          <button onclick="createManualHostOffer()" class="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition cursor-pointer">
-            Gerar Código de Oferta (Tela)
-          </button>
-          <textarea id="manualOfferOut" rows="3" readonly placeholder="O código da oferta aparecerá aqui..."
-            class="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 font-mono text-[10px] text-slate-300"></textarea>
-          <button onclick="copyTextFromEl('manualOfferOut')" class="w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer">
-            Copiar Oferta
-          </button>
-          <textarea id="manualAnswerIn" rows="3" placeholder="Cole aqui a RESPOSTA enviada pelo técnico..."
-            class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 font-mono text-[10px] text-slate-200"></textarea>
-          <button onclick="applyManualHostAnswer()" class="w-full py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-semibold cursor-pointer">
-            Concluir Conexão do Cliente
-          </button>
+      <div class="space-y-4 text-sm text-slate-300">
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs leading-relaxed">
+          <p class="font-semibold text-amber-300 mb-1">Por que isso é necessário?</p>
+          <p class="text-slate-400">
+            Por segurança, nenhum navegador (Chrome, Edge, Firefox) permite que um site mova o mouse ou digite fora da aba.
+            Sem este agente, o técnico usa <strong>Ponteiro Guia + Desenho na Tela + Chat</strong>.
+            Com este <strong>Mini-Agente Local</strong> rodando no PC do cliente, o técnico ganha <strong>controle total do mouse e teclado</strong> direto pelo site!
+          </p>
         </div>
 
-        <!-- Lado Técnico -->
-        <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
-          <h4 class="font-bold text-sky-400">2. Lado do Técnico (Gera Resposta)</h4>
-          <textarea id="manualOfferIn" rows="3" placeholder="Cole aqui a OFERTA enviada pelo cliente..."
-            class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 font-mono text-[10px] text-slate-200"></textarea>
-          <button onclick="createManualTechAnswer()" class="w-full py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold transition cursor-pointer">
-            Aceitar Oferta e Gerar Resposta
+        <div class="space-y-2">
+          <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Passo a Passo (no computador do cliente):</p>
+          <ol class="list-decimal list-inside space-y-1.5 text-xs text-slate-300">
+            <li>Baixe o arquivo <code class="px-1.5 py-0.5 rounded bg-slate-800 text-sky-300">agente_controle.py</code> clicando no botão abaixo.</li>
+            <li>Instale as 2 bibliotecas (apenas na primeira vez): <code class="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300">pip install websockets pyautogui</code></li>
+            <li>Execute o agente: <code class="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300">python agente_controle.py</code></li>
+            <li>Clique em <strong>Conectar Agente</strong> aqui no site — pronto, o técnico já consegue mexer no mouse e teclado!</li>
+          </ol>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 pt-2">
+          <button onclick="downloadPythonAgent()" class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition flex items-center gap-2">
+            <i data-lucide="download" class="w-4 h-4"></i> Baixar agente_controle.py
           </button>
-          <textarea id="manualAnswerOut" rows="3" readonly placeholder="O código de resposta aparecerá aqui..."
-            class="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 font-mono text-[10px] text-slate-300"></textarea>
-          <button onclick="copyTextFromEl('manualAnswerOut')" class="w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer">
-            Copiar Resposta para o Cliente
+          <button onclick="copyPythonAgentCode()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition flex items-center gap-2">
+            <i data-lucide="copy" class="w-4 h-4"></i> Copiar Código Python
+          </button>
+          <button onclick="connectLocalControlAgent()" class="px-4 py-2.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-semibold text-xs transition flex items-center gap-2">
+            <i data-lucide="plug" class="w-4 h-4"></i> Testar Conexão Local (ws://localhost:8765)
           </button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Container de Notificações (Toast) -->
-  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+  <!-- ==================== MODAL: MODO DE SINALIZAÇÃO ==================== -->
+  <div id="modalModeSelect" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full shadow-2xl p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-bold text-white">Escolher Modo de Sinalização</h3>
+        <button onclick="toggleModal('modalModeSelect', false)" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="space-y-3">
+        <button onclick="switchToSignalingMode('cloud')" class="w-full text-left p-3.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 transition">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-sm text-emerald-400">1. Nuvem WebRTC (PeerJS)</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">Internet</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Conecta cliente e técnico em qualquer lugar do mundo via código de 6 dígitos (requer hospedagem HTTPS fora do preview).</p>
+        </button>
 
-  <!-- ========================================================= -->
-  <!-- LÓGICA JAVASCRIPT COMPLETA (WEBRTC + PEERJS + DEMO)       -->
-  <!-- ========================================================= -->
+        <button onclick="switchToSignalingMode('local')" class="w-full text-left p-3.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 transition">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-sm text-purple-400">2. Modo Local (BroadcastChannel)</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">Mesmo PC</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Ideal para testar abrindo duas abas no mesmo navegador sem precisar de servidor externo.</p>
+        </button>
+
+        <button onclick="toggleModal('modalModeSelect', false); toggleModal('modalManualSDP', true);" class="w-full text-left p-3.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 transition">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-sm text-sky-400">3. Conexão Direta SDP (Copiar/Colar)</span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-sky-500/20 text-sky-300">Zero Servidor</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Troque o código de Oferta/Resposta via WhatsApp quando houver firewall corporativo bloqueando WebSockets.</p>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: CONEXÃO MANUAL SDP ==================== -->
+  <div id="modalManualSDP" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full shadow-2xl p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-white">Conexão Manual WebRTC (SDP Base64)</h3>
+        <button onclick="toggleModal('modalManualSDP', false)" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <p class="text-xs text-slate-400">
+        1) O <strong>Cliente</strong> clica em "Gerar Oferta" e envia o código ao Técnico.<br/>
+        2) O <strong>Técnico</strong> cola a Oferta, clica em "Aceitar Oferta e Gerar Resposta" e devolve ao Cliente.<br/>
+        3) O <strong>Cliente</strong> cola a Resposta e clica em "Finalizar Conexão".
+      </p>
+
+      <textarea id="manualSdpInput" rows="4" placeholder="Cole aqui o código Base64 de Oferta ou Resposta..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs font-mono text-slate-200 outline-none"></textarea>
+
+      <div class="flex flex-wrap gap-2">
+        <button onclick="manualCreateOffer()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition">Cliente: Gerar Oferta</button>
+        <button onclick="manualAcceptOffer()" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold transition">Técnico: Aceitar Oferta</button>
+        <button onclick="manualAcceptAnswer()" class="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition">Cliente: Finalizar Conexão</button>
+        <button onclick="copyTextToClipboard(document.getElementById('manualSdpInput').value, 'Código SDP copiado!')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition">Copiar Texto</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== LÓGICA PRINCIPAL DA APLICAÇÃO ==================== -->
   <script>
     // -------------------------------------------------------------
-    // 1. CONFIGURAÇÃO GLOBAL E ESTADO DA APLICAÇÃO
+    // 1. ESTADO GLOBAL E CONFIGURAÇÃO WEBRTC
     // -------------------------------------------------------------
     const rtcIceConfig = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' }
+        { urls: 'stun:stun2.l.google.com:19302' }
       ]
     };
 
     let signalingMode = 'cloud'; // 'cloud' | 'local' | 'manual'
-    let currentRole = null;      // 'tech' | 'host'
+    let currentRole = null;      // 'host' | 'tech'
     let currentRoomCode = '';
     let generatedClientCode = '';
 
+    // Conexões PeerJS / WebRTC Nativo / BroadcastChannel
     let peer = null;
-    let peerIdCloud = null;
     let activeDataConn = null;
     let activeMediaCall = null;
     let localMediaStream = null;
-
     let broadcastChannel = null;
     let nativePeerConn = null;
     let nativeDataChannel = null;
     let loopbackHostPC = null;
     let loopbackHostChannel = null;
 
+    // Agente Local de Controle Real (WebSocket localhost:8765)
+    let localAgentWs = null;
+    let isLocalAgentConnected = false;
+    let remoteHasAgent = false;
+
+    // Ferramentas Interativas do Técnico
+    let activeTool = 'pointer'; // 'pointer' | 'draw' | 'control'
+    let isDrawing = false;
+    let lastDrawPt = null;
+    let lastMouseMoveSent = 0;
+
+    // Timers e UI
     let sessionTimerInterval = null;
     let pingInterval = null;
     let sessionStartTime = null;
-    let isPointerToolActive = true;
     let videoFitMode = 'contain';
-    let demoAnimFrame = null;
+    let audioCtx = null;
+
+    // Código do Mini-Agente Python para Controle Real de Mouse e Teclado
+    const PYTHON_AGENT_CODE = `import asyncio
+import json
+import websockets
+import pyautogui
+
+# Desativa pausa padrão para resposta instantânea do mouse
+pyautogui.PAUSE = 0
+pyautogui.FAILSAFE = True
+
+async def handle_client(websocket):
+    print("[AcessoWeb Agente] Navegador conectado! Controle real pronto.")
+    screen_w, screen_h = pyautogui.size()
+    try:
+        async for message in websocket:
+            data = json.loads(message)
+            action = data.get("action")
+
+            if action == "move":
+                x = int(data["x"] * screen_w)
+                y = int(data["y"] * screen_h)
+                pyautogui.moveTo(x, y)
+
+            elif action == "click":
+                x = int(data["x"] * screen_w)
+                y = int(data["y"] * screen_h)
+                btn = data.get("button", "left")
+                clicks = data.get("clicks", 1)
+                pyautogui.click(x=x, y=y, button=btn, clicks=clicks)
+
+            elif action == "scroll":
+                dy = int(data.get("deltaY", 0))
+                pyautogui.scroll(-dy)
+
+            elif action == "keydown":
+                key = data.get("key", "")
+                key_map = {
+                    "Enter": "enter", "Backspace": "backspace", "Tab": "tab",
+                    "Escape": "esc", "ArrowUp": "up", "ArrowDown": "down",
+                    "ArrowLeft": "left", "ArrowRight": "right", "Delete": "delete",
+                    " ": "space"
+                }
+                if key in key_map:
+                    pyautogui.press(key_map[key])
+                elif len(key) == 1:
+                    pyautogui.write(key)
+    except Exception as e:
+        print("[AcessoWeb Agente] Desconectado:", e)
+
+async def main():
+    print("====================================================")
+    print("  AcessoWeb Remoto - Mini-Agente de Controle Real")
+    print("  Escutando em ws://localhost:8765")
+    print("  Mantenha esta janela aberta durante o suporte.")
+    print("====================================================")
+    async with websockets.serve(handle_client, "localhost", 8765):
+        await asyncio.Future()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+`;
 
     // -------------------------------------------------------------
-    // 2. DETECÇÃO DE AMBIENTE E INICIALIZAÇÃO
+    // 2. INICIALIZAÇÃO E DETECÇÃO DE AMBIENTE
     // -------------------------------------------------------------
     function isRestrictedPreview() {
       try {
@@ -680,11 +656,17 @@
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
       regenerateClientCode();
-      setupPointerClickListener();
+      setupTechInteractionEvents();
+      window.addEventListener('resize', resizeAnnotationCanvas);
+
+      // Formatação automática do campo de código (XXX-XXX)
+      const codeInput = document.getElementById('inputSessionCode');
+      codeInput.addEventListener('input', (e) => {
+        let digits = e.target.value.replace(/\D/g, '').slice(0, 6);
+        e.target.value = digits.length > 3 ? `${digits.slice(0, 3)}-${digits.slice(3)}` : digits;
+      });
 
       if (isRestrictedPreview()) {
-        // Evita SecurityError de WebSocket externo dentro de iframes sandbox
-        document.getElementById('sandboxNoticeBanner').classList.remove('hidden');
         switchToSignalingMode('local', true);
         document.getElementById('signalingStatusText').innerText = 'Modo Local (Preview)';
       } else {
@@ -692,8 +674,27 @@
       }
     });
 
-    function initPeerCloud(force = false) {
-      if (!force && isRestrictedPreview()) {
+    function generateRandomCode() {
+      const part1 = Math.floor(100 + Math.random() * 900);
+      const part2 = Math.floor(100 + Math.random() * 900);
+      return `${part1}-${part2}`;
+    }
+
+    window.regenerateClientCode = function () {
+      generatedClientCode = generateRandomCode();
+      document.getElementById('displayClientCode').innerText = generatedClientCode;
+    };
+
+    window.copyClientCode = function () {
+      copyTextToClipboard(generatedClientCode, `Código ${generatedClientCode} copiado!`);
+    };
+
+    // -------------------------------------------------------------
+    // 3. SINALIZAÇÃO EM NUVEM (PEERJS) E MODOS ALTERNATIVOS
+    // -------------------------------------------------------------
+    function initPeerCloud() {
+      if (isRestrictedPreview()) {
+        showToast('WebSockets externos são bloqueados neste preview. Hospede o arquivo ou use o Modo Local / Demo Integrada.', 'info');
         switchToSignalingMode('local', true);
         return false;
       }
@@ -704,22 +705,13 @@
         dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
         txt.innerText = 'Conectando Nuvem...';
 
-        if (peer && !peer.destroyed) {
-          peer.destroy();
-        }
+        if (peer && !peer.destroyed) peer.destroy();
 
-        peer = new Peer({
-          config: rtcIceConfig,
-          debug: 0
-        });
+        peer = new Peer({ config: rtcIceConfig, debug: 0 });
 
-        peer.on('open', (id) => {
-          peerIdCloud = id;
-          signalingMode = 'cloud';
+        peer.on('open', () => {
           dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
           txt.innerText = 'Nuvem WebRTC: Online';
-          document.getElementById('techModeLabel').innerText = 'Sinalização: PeerJS Nuvem';
-          document.getElementById('hostModeLabel').innerText = 'Sinalização: PeerJS Nuvem';
         });
 
         peer.on('connection', (conn) => {
@@ -729,7 +721,7 @@
 
         peer.on('call', (call) => {
           activeMediaCall = call;
-          if (localMediaStream) {
+          if (localMediaStream && currentRole === 'host') {
             call.answer(localMediaStream);
           } else {
             call.answer();
@@ -739,62 +731,38 @@
 
         peer.on('disconnected', () => {
           dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400';
-          txt.innerText = 'Nuvem: Reconectando...';
+          txt.innerText = 'Nuvem: Desconectada';
         });
 
         peer.on('error', (err) => {
-          if (err.type === 'unavailable-id') {
-            showToast('Código já em uso. Gerando novo código...', 'error');
+          if (err.type === 'peer-unavailable') {
+            showToast('Cliente não encontrado ou offline. Verifique o código.', 'error');
+          } else if (err.type === 'unavailable-id') {
+            showToast('Código em uso. Gerando novo...', 'error');
             regenerateClientCode();
-          } else if (err.type === 'peer-unavailable') {
-            showToast('Cliente não encontrado ou offline. Verifique o código de 6 dígitos.', 'error');
-            updateConnStatusUI('Cliente não encontrado', 'rose');
           } else {
             dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-400';
-            txt.innerText = 'Nuvem Bloqueada/Offline';
-            showToast('Não foi possível acessar a Nuvem WebRTC neste ambiente. Usando Modo Local.', 'error');
-            switchToSignalingMode('local', true);
+            txt.innerText = 'Nuvem Indisponível';
           }
         });
 
         return true;
       } catch (err) {
-        showToast('WebSocket externo bloqueado pelo navegador. Abra o arquivo hospedado em HTTPS.', 'error');
         switchToSignalingMode('local', true);
         return false;
       }
     }
 
-    window.forceCloudConnection = function () {
-      toggleModal('modalCloudGuide', false);
-      initPeerCloud(true);
-    };
-
-    // -------------------------------------------------------------
-    // 3. CONTROLE DE MODOS E CÓDIGO DO CLIENTE
-    // -------------------------------------------------------------
-    window.regenerateClientCode = function () {
-      const part1 = Math.floor(100 + Math.random() * 900);
-      const part2 = Math.floor(100 + Math.random() * 900);
-      generatedClientCode = `${part1}-${part2}`;
-      document.getElementById('generatedCodeDisplay').innerText = generatedClientCode;
-    };
-
-    window.copyGeneratedCode = function () {
-      copyStringToClipboard(generatedClientCode);
-      showToast(`Código ${generatedClientCode} copiado!`, 'success');
-    };
-
     window.switchToSignalingMode = function (mode, silent = false) {
       if (mode === 'cloud' && isRestrictedPreview()) {
         toggleModal('modalModeSelect', false);
-        toggleModal('modalCloudGuide', true);
-        showToast('A Nuvem PeerJS é bloqueada dentro do preview. Veja como publicar em 30s.', 'info');
-        return;
+        showToast('A Nuvem PeerJS só ativa quando o HTML é aberto fora deste preview sandbox.', 'info');
+        mode = 'local';
       }
 
       signalingMode = mode;
       toggleModal('modalModeSelect', false);
+
       const dot = document.getElementById('signalingStatusDot');
       const txt = document.getElementById('signalingStatusText');
       const techLabel = document.getElementById('techModeLabel');
@@ -805,31 +773,26 @@
         txt.innerText = 'Modo Local (2 Abas)';
         techLabel.innerText = 'Sinalização: BroadcastChannel (Local)';
         hostLabel.innerText = 'Sinalização: BroadcastChannel (Local)';
-        if (!silent) showToast('Modo Local ativado! Abra este site em 2 abas no mesmo PC.', 'info');
+        if (!silent) showToast('Modo Local ativado! Abra duas abas para testar.', 'info');
         setupBroadcastChannel();
-      } else if (mode === 'manual') {
-        dot.className = 'w-2.5 h-2.5 rounded-full bg-sky-400';
-        txt.innerText = 'Modo Manual (SDP)';
-        techLabel.innerText = 'Sinalização: SDP Manual';
-        hostLabel.innerText = 'Sinalização: SDP Manual';
       } else {
-        initPeerCloud();
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+        txt.innerText = 'Nuvem WebRTC: Online';
+        techLabel.innerText = 'Sinalização: PeerJS Nuvem';
+        hostLabel.innerText = 'Sinalização: PeerJS Nuvem';
+        if (!peer || peer.destroyed) initPeerCloud();
       }
     };
 
     // -------------------------------------------------------------
-    // 4. FLUXO DO CLIENTE (HOST): COMPARTILHAR TELA
+    // 4. FLUXO DO CLIENTE (HOST)
     // -------------------------------------------------------------
     window.startHostSharing = async function (isSimulated = false) {
       try {
         if (isSimulated) {
           localMediaStream = createSimulatedCanvasStream();
-          showToast('Tela Simulada (Demo 30 FPS) iniciada.', 'info');
+          showToast('Tela Simulada ativada (Canvas 30 FPS).', 'info');
         } else {
-          if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-            showToast('Seu navegador ou contexto atual não permite captura de tela. Use HTTPS ou a Tela Simulada.', 'error');
-            return;
-          }
           localMediaStream = await navigator.mediaDevices.getDisplayMedia({
             video: { cursor: 'always', frameRate: 30 },
             audio: false
@@ -840,22 +803,25 @@
         currentRoomCode = generatedClientCode.replace('-', '').trim();
         const hostPeerId = `acessoweb-remoto-${currentRoomCode}`;
 
+        // Mostra preview da própria tela para o cliente ver as marcações/desenhos do técnico
+        const videoEl = document.getElementById('remoteVideo');
+        videoEl.srcObject = localMediaStream;
+
         if (signalingMode === 'cloud' && !isRestrictedPreview()) {
           if (peer && !peer.destroyed) peer.destroy();
-
           peer = new Peer(hostPeerId, { config: rtcIceConfig, debug: 0 });
 
           peer.on('open', () => {
-            updateConnStatusUI('Aguardando técnico conectar...', 'amber');
-            showToast(`Sala ${generatedClientCode} pronta na Nuvem! Passe o código ao técnico.`, 'success');
+            updateConnStatusUI('Aguardando Técnico...', 'amber');
+            showToast(`Sessão ${generatedClientCode} pronta! Passe o código ao técnico.`, 'success');
           });
 
           peer.on('connection', (conn) => {
             activeDataConn = conn;
             setupPeerDataConnection(conn);
-            showToast('Técnico conectado! Enviando vídeo da tela...', 'success');
+            showToast('Técnico conectado! Enviando vídeo...', 'success');
 
-            // Padrão mais confiável no PeerJS: Host inicia a chamada de vídeo para o Técnico
+            // Fluxo confiável no PeerJS: o Host inicia a chamada de mídia com a stream real
             const mediaCall = peer.call(conn.peer, localMediaStream);
             activeMediaCall = mediaCall;
             setupPeerMediaCall(mediaCall);
@@ -869,23 +835,21 @@
 
           peer.on('error', (err) => {
             if (err.type === 'unavailable-id') {
-              showToast('Código em uso. Gerando novo...', 'error');
               regenerateClientCode();
               startHostSharing(isSimulated);
             } else {
-              showToast('Erro na Nuvem WebRTC. Verifique sua internet.', 'error');
+              showToast('Erro na Nuvem WebRTC. Tente reconectar.', 'error');
             }
           });
         } else {
           setupBroadcastChannel();
-          updateConnStatusUI('Aguardando técnico (Modo Local)...', 'amber');
-          showToast(`Aguardando técnico na sala ${generatedClientCode} (Modo Local).`, 'success');
+          updateConnStatusUI('Aguardando Técnico (Local)...', 'amber');
+          showToast('Aguardando Técnico na outra aba (Modo Local).', 'success');
         }
 
-        // Encerra sessão se o usuário clicar em "Parar compartilhamento" do navegador
         localMediaStream.getTracks().forEach((track) => {
           track.onended = () => {
-            showToast('Compartilhamento de tela encerrado pelo cliente.', 'info');
+            showToast('Compartilhamento de tela encerrado.', 'info');
             disconnectSession();
           };
         });
@@ -893,20 +857,19 @@
         switchToLiveView('CLIENTE', generatedClientCode);
         document.getElementById('hostPreviewOverlay').classList.remove('hidden');
         document.getElementById('videoPlaceholder').classList.add('hidden');
-        document.getElementById('quickMacrosContainer').classList.add('hidden');
       } catch (err) {
         console.error('Erro ao capturar tela:', err);
-        showToast('Permissão negada ou captura bloqueada. Tente a Tela Simulada (Demo).', 'error');
+        showToast('Permissão negada ou indisponível. Teste com "Tela Simulada (Demo)".', 'error');
       }
     };
 
     // -------------------------------------------------------------
-    // 5. FLUXO DO TÉCNICO: CONECTAR AO CLIENTE
+    // 5. FLUXO DO TÉCNICO
     // -------------------------------------------------------------
     window.connectAsTech = function () {
-      const rawCode = document.getElementById('inputSessionCode').value.trim().replace(/[^0-9]/g, '');
+      const rawCode = document.getElementById('inputSessionCode').value.trim().replace(/\D/g, '');
       if (rawCode.length !== 6) {
-        showToast('Digite um código válido de 6 dígitos (ex: 482915).', 'error');
+        showToast('Digite um código válido de 6 dígitos.', 'error');
         return;
       }
 
@@ -916,12 +879,18 @@
 
       if (signalingMode === 'cloud' && !isRestrictedPreview()) {
         const hostPeerId = `acessoweb-remoto-${rawCode}`;
-
         if (!peer || peer.destroyed) {
           peer = new Peer({ config: rtcIceConfig, debug: 0 });
         }
 
-        // Técnico aguarda o Host retornar a chamada de vídeo assim que o DataChannel abrir
+        const startConnection = () => {
+          // 1. Técnico abre canal de dados; ao receber, o Host envia o vídeo via peer.call()
+          const conn = peer.connect(hostPeerId, { reliable: true });
+          activeDataConn = conn;
+          setupPeerDataConnection(conn);
+        };
+
+        // Escuta a chamada de vídeo vinda do Host
         peer.off('call');
         peer.on('call', (call) => {
           activeMediaCall = call;
@@ -929,51 +898,40 @@
           setupPeerMediaCall(call);
         });
 
-        const initiateCloudConnect = () => {
-          updateConnStatusUI('Conectando ao cliente...', 'amber');
-          const conn = peer.connect(hostPeerId, { reliable: true });
-          activeDataConn = conn;
-          setupPeerDataConnection(conn);
-        };
-
         if (peer.open) {
-          initiateCloudConnect();
+          startConnection();
         } else {
-          peer.once('open', initiateCloudConnect);
+          peer.once('open', startConnection);
         }
-
-        peer.on('error', (err) => {
-          if (err.type === 'peer-unavailable') {
-            showToast('Cliente não encontrado. Confirme se ele clicou em Compartilhar Tela.', 'error');
-            updateConnStatusUI('Cliente offline', 'rose');
-          }
-        });
       } else {
         setupBroadcastChannel();
         broadcastChannel.postMessage({ type: 'TECH_CONNECT_REQUEST', room: currentRoomCode });
       }
 
       switchToLiveView('TÉCNICO', formattedCode);
-      document.getElementById('techClickCapture').classList.remove('hidden');
+      document.getElementById('techToolbar').classList.remove('hidden');
+      document.getElementById('techInteractionLayer').classList.remove('hidden');
+      setActiveTool('pointer');
     };
 
     // -------------------------------------------------------------
-    // 6. HANDLERS DO PEERJS (DATA & MEDIA)
+    // 6. HANDLERS PEERJS (DATA & MEDIA)
     // -------------------------------------------------------------
     function setupPeerDataConnection(conn) {
       conn.on('open', () => {
-        updateConnStatusUI('Conectado (Nuvem P2P)', 'emerald');
-        appendChatMessage('Sistema', 'Canal de dados P2P conectado com sucesso.', 'system');
-        startPingHeartbeat();
+        updateConnStatusUI('Conectado (P2P)', 'emerald');
+        startHeartbeatPing();
+        // Host informa ao técnico se o Agente de Controle Real está ativo
+        if (currentRole === 'host') {
+          sendDataPayload({ type: 'agent_status', active: isLocalAgentConnected });
+        }
       });
 
-      conn.on('data', (raw) => {
-        handleIncomingDataMessage(raw);
-      });
+      conn.on('data', (data) => handleIncomingData(data));
 
       conn.on('close', () => {
-        showToast('A outra ponta encerrou a conexão.', 'info');
-        disconnectSession(true);
+        updateConnStatusUI('Conexão encerrada', 'rose');
+        showToast('A outra ponta desconectou.', 'info');
       });
     }
 
@@ -982,105 +940,358 @@
         const videoEl = document.getElementById('remoteVideo');
         videoEl.srcObject = remoteStream;
         document.getElementById('videoPlaceholder').classList.add('hidden');
-        updateConnStatusUI('Ao Vivo (Nuvem WebRTC)', 'emerald');
-
+        updateConnStatusUI('Ao Vivo (Nuvem P2P)', 'emerald');
         videoEl.onloadedmetadata = () => {
           document.getElementById('resVal').innerText = `${videoEl.videoWidth} x ${videoEl.videoHeight}`;
+          resizeAnnotationCanvas();
         };
       });
+    }
 
-      call.on('close', () => {
-        updateConnStatusUI('Transmissão encerrada', 'rose');
+    // -------------------------------------------------------------
+    // 7. PROTOCOLO DE DADOS (CHAT, PONTEIRO, DESENHO, CONTROLE REAL)
+    // -------------------------------------------------------------
+    function sendDataPayload(payload) {
+      try {
+        if (activeDataConn && activeDataConn.open) {
+          activeDataConn.send(payload);
+        } else if (nativeDataChannel && nativeDataChannel.readyState === 'open') {
+          nativeDataChannel.send(JSON.stringify(payload));
+        }
+      } catch (e) {}
+    }
+
+    function handleIncomingData(rawData) {
+      let msg = rawData;
+      if (typeof rawData === 'string') {
+        try { msg = JSON.parse(rawData); } catch (e) { return; }
+      }
+      if (!msg || !msg.type) return;
+
+      switch (msg.type) {
+        case 'ping':
+          sendDataPayload({ type: 'pong', timestamp: msg.timestamp });
+          break;
+
+        case 'pong':
+          const rtt = Math.max(1, Date.now() - msg.timestamp);
+          document.getElementById('pingVal').innerText = `${rtt} ms`;
+          break;
+
+        case 'chat':
+          appendChatMessage(msg.sender, msg.text, msg.timestamp, false);
+          break;
+
+        case 'pointer':
+          renderPointerPing(msg.x, msg.y, msg.label);
+          playPingSound();
+          break;
+
+        case 'draw':
+          drawLineOnCanvas(msg.x1, msg.y1, msg.x2, msg.y2, msg.color || '#38bdf8');
+          break;
+
+        case 'clear_draw':
+          clearRemoteAnnotations(false);
+          break;
+
+        case 'agent_status':
+          remoteHasAgent = !!msg.active;
+          updateControlBannerMessage();
+          break;
+
+        case 'control':
+          // Atualiza cursor virtual na tela do cliente
+          if (typeof msg.x === 'number' && typeof msg.y === 'number') {
+            showRemoteVirtualCursor(msg.x, msg.y);
+          }
+          // Encaminha evento real para o Mini-Agente Python se conectado
+          if (isLocalAgentConnected && localAgentWs && localAgentWs.readyState === WebSocket.OPEN) {
+            localAgentWs.send(JSON.stringify(msg));
+          } else if (msg.action === 'click') {
+            // Fallback visual caso o agente não esteja rodando
+            renderPointerPing(msg.x, msg.y, 'Clique do Técnico');
+          }
+          break;
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 8. INTERAÇÕES DO TÉCNICO (PONTEIRO, DESENHO E CONTROLE REAL)
+    // -------------------------------------------------------------
+    window.setActiveTool = function (tool) {
+      activeTool = tool;
+      const layer = document.getElementById('techInteractionLayer');
+      const banner = document.getElementById('controlStatusBanner');
+
+      const btnPointer = document.getElementById('btnToolPointer');
+      const btnDraw = document.getElementById('btnToolDraw');
+      const btnControl = document.getElementById('btnToolControl');
+
+      // Reset estilos
+      btnPointer.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 bg-slate-800 text-slate-300 hover:bg-slate-700';
+      btnDraw.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 bg-slate-800 text-slate-300 hover:bg-slate-700';
+      btnControl.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 bg-slate-800 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20';
+
+      if (tool === 'pointer') {
+        btnPointer.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 bg-sky-600 text-white';
+        layer.style.cursor = 'crosshair';
+        banner.classList.add('hidden');
+      } else if (tool === 'draw') {
+        btnDraw.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 bg-purple-600 text-white';
+        layer.style.cursor = 'cell';
+        banner.classList.add('hidden');
+      } else if (tool === 'control') {
+        btnControl.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 bg-amber-500 text-slate-950 font-bold';
+        layer.style.cursor = 'default';
+        banner.classList.remove('hidden');
+        updateControlBannerMessage();
+        document.getElementById('videoStageWrapper').focus();
+      }
+    };
+
+    function updateControlBannerMessage() {
+      const txt = document.getElementById('controlBannerText');
+      if (remoteHasAgent) {
+        txt.innerHTML = '<strong class="text-emerald-300">Agente Conectado no Cliente!</strong> Movimentos do mouse, cliques e teclado sobre o vídeo controlam o computador real do cliente.';
+      } else {
+        txt.innerHTML = '<strong>Modo Controle Real ativo</strong> (Mini-Agente não detectado no cliente). Os cliques aparecem como guia visual; para mover o mouse real do cliente, rode o <strong>agente_controle.py</strong> no PC dele.';
+      }
+    }
+
+    function getNormalizedVideoCoords(clientX, clientY) {
+      const video = document.getElementById('remoteVideo');
+      const rect = video.getBoundingClientRect();
+      if (!rect.width || !rect.height) return { x: 0.5, y: 0.5 };
+      const x = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+      const y = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+      return { x, y };
+    }
+
+    function setupTechInteractionEvents() {
+      const layer = document.getElementById('techInteractionLayer');
+      const wrapper = document.getElementById('videoStageWrapper');
+
+      // Evita menu de contexto no clique direito durante Controle Real
+      layer.addEventListener('contextmenu', (e) => {
+        if (activeTool === 'control') e.preventDefault();
+      });
+
+      layer.addEventListener('pointerdown', (e) => {
+        const pt = getNormalizedVideoCoords(e.clientX, e.clientY);
+
+        if (activeTool === 'pointer') {
+          const label = document.getElementById('pointerLabelSelect').value;
+          renderPointerPing(pt.x, pt.y, label);
+          playPingSound();
+          sendDataPayload({ type: 'pointer', x: pt.x, y: pt.y, label });
+        } else if (activeTool === 'draw') {
+          isDrawing = true;
+          lastDrawPt = pt;
+        } else if (activeTool === 'control') {
+          wrapper.focus();
+          const btnMap = { 0: 'left', 1: 'middle', 2: 'right' };
+          sendDataPayload({
+            type: 'control',
+            action: 'click',
+            x: pt.x,
+            y: pt.y,
+            button: btnMap[e.button] || 'left',
+            clicks: 1
+          });
+          showRemoteVirtualCursor(pt.x, pt.y);
+        }
+      });
+
+      layer.addEventListener('pointermove', (e) => {
+        const pt = getNormalizedVideoCoords(e.clientX, e.clientY);
+
+        if (activeTool === 'draw' && isDrawing && lastDrawPt) {
+          drawLineOnCanvas(lastDrawPt.x, lastDrawPt.y, pt.x, pt.y, '#38bdf8');
+          sendDataPayload({
+            type: 'draw',
+            x1: lastDrawPt.x,
+            y1: lastDrawPt.y,
+            x2: pt.x,
+            y2: pt.y,
+            color: '#38bdf8'
+          });
+          lastDrawPt = pt;
+        } else if (activeTool === 'control') {
+          const now = Date.now();
+          if (now - lastMouseMoveSent > 45) {
+            lastMouseMoveSent = now;
+            showRemoteVirtualCursor(pt.x, pt.y);
+            sendDataPayload({ type: 'control', action: 'move', x: pt.x, y: pt.y });
+          }
+        }
+      });
+
+      window.addEventListener('pointerup', () => {
+        isDrawing = false;
+        lastDrawPt = null;
+      });
+
+      layer.addEventListener('dblclick', (e) => {
+        if (activeTool === 'control') {
+          const pt = getNormalizedVideoCoords(e.clientX, e.clientY);
+          sendDataPayload({ type: 'control', action: 'click', x: pt.x, y: pt.y, button: 'left', clicks: 2 });
+        }
+      });
+
+      layer.addEventListener('wheel', (e) => {
+        if (activeTool === 'control') {
+          e.preventDefault();
+          sendDataPayload({ type: 'control', action: 'scroll', deltaY: Math.sign(e.deltaY) * 120 });
+        }
+      }, { passive: false });
+
+      // Captura de teclado quando o vídeo está focado no modo Controle Real
+      wrapper.addEventListener('keydown', (e) => {
+        if (activeTool !== 'control' || currentRole !== 'tech') return;
+        e.preventDefault();
+        sendDataPayload({ type: 'control', action: 'keydown', key: e.key });
       });
     }
 
     // -------------------------------------------------------------
-    // 7. MODO LOCAL (BROADCAST CHANNEL - 2 ABAS NO MESMO PC)
+    // 9. DESENHO LIVRE, PONTEIRO E CURSOR VIRTUAL
     // -------------------------------------------------------------
-    function setupBroadcastChannel() {
-      if (broadcastChannel) broadcastChannel.close();
-      broadcastChannel = new BroadcastChannel('acessoweb_remoto_local_v1');
-
-      broadcastChannel.onmessage = async (event) => {
-        const data = event.data;
-        if (!data || data.room !== currentRoomCode) return;
-
-        if (data.type === 'TECH_CONNECT_REQUEST' && currentRole === 'host') {
-          await startLocalHostRTC();
-        } else if (data.type === 'LOCAL_OFFER' && currentRole === 'tech') {
-          await handleLocalOfferAsTech(data.sdp);
-        } else if (data.type === 'LOCAL_ANSWER' && currentRole === 'host') {
-          if (nativePeerConn) {
-            await nativePeerConn.setRemoteDescription(new RTCSessionDescription(data.sdp));
-          }
-        } else if (data.type === 'LOCAL_ICE') {
-          if (nativePeerConn && data.candidate) {
-            try {
-              await nativePeerConn.addIceCandidate(new RTCIceCandidate(data.candidate));
-            } catch (e) {}
-          }
-        }
-      };
+    function resizeAnnotationCanvas() {
+      const canvas = document.getElementById('annotationCanvas');
+      const rect = canvas.parentElement.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
     }
 
-    async function startLocalHostRTC() {
-      nativePeerConn = new RTCPeerConnection(rtcIceConfig);
-      localMediaStream.getTracks().forEach((t) => nativePeerConn.addTrack(t, localMediaStream));
-
-      nativePeerConn.onicecandidate = (e) => {
-        if (e.candidate) {
-          broadcastChannel.postMessage({ type: 'LOCAL_ICE', room: currentRoomCode, candidate: e.candidate.toJSON() });
-        }
-      };
-
-      const dc = nativePeerConn.createDataChannel('supportChannel');
-      setupNativeDataChannel(dc);
-
-      const offer = await nativePeerConn.createOffer();
-      await nativePeerConn.setLocalDescription(offer);
-      broadcastChannel.postMessage({ type: 'LOCAL_OFFER', room: currentRoomCode, sdp: offer });
+    function drawLineOnCanvas(x1, y1, x2, y2, color) {
+      const canvas = document.getElementById('annotationCanvas');
+      if (!canvas.width) resizeAnnotationCanvas();
+      const ctx = canvas.getContext('2d');
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x1 * canvas.width, y1 * canvas.height);
+      ctx.lineTo(x2 * canvas.width, y2 * canvas.height);
+      ctx.stroke();
     }
 
-    async function handleLocalOfferAsTech(sdp) {
-      nativePeerConn = new RTCPeerConnection(rtcIceConfig);
+    window.clearRemoteAnnotations = function (broadcast = false) {
+      const canvas = document.getElementById('annotationCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (broadcast) sendDataPayload({ type: 'clear_draw' });
+    };
 
-      nativePeerConn.onicecandidate = (e) => {
-        if (e.candidate) {
-          broadcastChannel.postMessage({ type: 'LOCAL_ICE', room: currentRoomCode, candidate: e.candidate.toJSON() });
-        }
-      };
+    function renderPointerPing(nx, ny, label = 'Clique Aqui') {
+      const layer = document.getElementById('pingLayer');
+      const marker = document.createElement('div');
+      marker.className = 'absolute pointer-events-none';
+      marker.style.left = `${nx * 100}%`;
+      marker.style.top = `${ny * 100}%`;
+      marker.innerHTML = `
+        <div class="w-12 h-12 rounded-full border-4 border-sky-400 bg-sky-400/20 ping-ring absolute"></div>
+        <div class="w-3.5 h-3.5 rounded-full bg-sky-400 border-2 border-white -translate-x-1/2 -translate-y-1/2 shadow-lg"></div>
+        <span class="absolute left-3 -top-3 px-2 py-0.5 rounded-md bg-sky-600 text-white text-[11px] font-bold whitespace-nowrap shadow-lg">${escapeHtml(label)}</span>
+      `;
+      layer.appendChild(marker);
+      setTimeout(() => marker.remove(), 1600);
+    }
 
-      nativePeerConn.ondatachannel = (e) => setupNativeDataChannel(e.channel);
+    function showRemoteVirtualCursor(nx, ny) {
+      const cursor = document.getElementById('remoteVirtualCursor');
+      cursor.classList.remove('hidden');
+      cursor.style.left = `${nx * 100}%`;
+      cursor.style.top = `${ny * 100}%`;
+    }
 
-      nativePeerConn.ontrack = (e) => {
-        const videoEl = document.getElementById('remoteVideo');
-        videoEl.srcObject = e.streams[0];
-        document.getElementById('videoPlaceholder').classList.add('hidden');
-        updateConnStatusUI('Ao Vivo (Local P2P)', 'emerald');
-        videoEl.onloadedmetadata = () => {
-          document.getElementById('resVal').innerText = `${videoEl.videoWidth} x ${videoEl.videoHeight}`;
+    function playPingSound() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.14);
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.14);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+      } catch (e) {}
+    }
+
+    // -------------------------------------------------------------
+    // 10. MINI-AGENTE LOCAL DE CONTROLE REAL (ws://localhost:8765)
+    // -------------------------------------------------------------
+    window.connectLocalControlAgent = function () {
+      try {
+        if (localAgentWs) { try { localAgentWs.close(); } catch (e) {} }
+        localAgentWs = new WebSocket('ws://localhost:8765');
+
+        localAgentWs.onopen = () => {
+          isLocalAgentConnected = true;
+          updateLocalAgentUI(true);
+          showToast('Agente de Controle Real conectado! Mouse e teclado liberados.', 'success');
+          sendDataPayload({ type: 'agent_status', active: true });
         };
-      };
 
-      await nativePeerConn.setRemoteDescription(new RTCSessionDescription(sdp));
-      const answer = await nativePeerConn.createAnswer();
-      await nativePeerConn.setLocalDescription(answer);
-      broadcastChannel.postMessage({ type: 'LOCAL_ANSWER', room: currentRoomCode, sdp: answer });
+        localAgentWs.onclose = () => {
+          isLocalAgentConnected = false;
+          updateLocalAgentUI(false);
+          sendDataPayload({ type: 'agent_status', active: false });
+        };
+
+        localAgentWs.onerror = () => {
+          isLocalAgentConnected = false;
+          updateLocalAgentUI(false);
+          showToast('Agente local não encontrado em localhost:8765. Baixe e execute agente_controle.py no PC do cliente.', 'info');
+        };
+      } catch (e) {
+        showToast('Não foi possível conectar ao agente local neste ambiente.', 'info');
+      }
+    };
+
+    function updateLocalAgentUI(connected) {
+      const dotHome = document.getElementById('agentDotHome');
+      const statusHome = document.getElementById('agentStatusHome');
+      const dotLive = document.getElementById('agentDotLive');
+      const statusLive = document.getElementById('agentStatusLive');
+
+      if (connected) {
+        dotHome.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+        statusHome.innerText = 'Agente de Controle Real: Conectado';
+        dotLive.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+        statusLive.innerText = 'Agente Mouse/Teclado: ON';
+      } else {
+        dotHome.className = 'w-2.5 h-2.5 rounded-full bg-slate-600';
+        statusHome.innerText = 'Agente de Controle Real: Desconectado';
+        dotLive.className = 'w-2 h-2 rounded-full bg-slate-500';
+        statusLive.innerText = 'Agente Mouse/Teclado: Off';
+      }
     }
 
-    function setupNativeDataChannel(channel) {
-      nativeDataChannel = channel;
-      channel.onopen = () => {
-        updateConnStatusUI('Conectado (P2P)', 'emerald');
-        appendChatMessage('Sistema', 'Canal de dados P2P conectado.', 'system');
-        startPingHeartbeat();
-      };
-      channel.onmessage = (e) => handleIncomingDataMessage(e.data);
-      channel.onclose = () => updateConnStatusUI('Desconectado', 'rose');
-    }
+    window.downloadPythonAgent = function () {
+      const blob = new Blob([PYTHON_AGENT_CODE], { type: 'text/x-python' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'agente_controle.py';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Download de agente_controle.py iniciado!', 'success');
+    };
+
+    window.copyPythonAgentCode = function () {
+      copyTextToClipboard(PYTHON_AGENT_CODE, 'Código Python copiado!');
+    };
 
     // -------------------------------------------------------------
-    // 8. DEMO INTEGRADA WEBRTC LOOPBACK (FUNCIONA 100% NO PREVIEW)
+    // 11. DEMO INTEGRADA LOOPBACK (FUNCIONA 100% NO PREVIEW)
     // -------------------------------------------------------------
     window.startIntegratedLoopbackDemo = async function () {
       try {
@@ -1099,9 +1310,7 @@
           if (e.candidate && loopbackHostPC) loopbackHostPC.addIceCandidate(e.candidate).catch(() => {});
         };
 
-        localMediaStream.getTracks().forEach((track) => {
-          loopbackHostPC.addTrack(track, localMediaStream);
-        });
+        localMediaStream.getTracks().forEach((track) => loopbackHostPC.addTrack(track, localMediaStream));
 
         loopbackHostChannel = loopbackHostPC.createDataChannel('supportChannel');
         loopbackHostChannel.onmessage = (e) => {
@@ -1112,12 +1321,11 @@
             } else if (msg.type === 'chat') {
               setTimeout(() => {
                 if (loopbackHostChannel && loopbackHostChannel.readyState === 'open') {
-                  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                   loopbackHostChannel.send(JSON.stringify({
                     type: 'chat',
                     sender: 'Cliente (Demo)',
-                    text: 'Recebido! Estou vendo suas instruções na tela.',
-                    timestamp: timeStr
+                    text: 'Recebido! Estou vendo suas marcações na tela.',
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                   }));
                 }
               }, 800);
@@ -1130,9 +1338,10 @@
           const videoEl = document.getElementById('remoteVideo');
           videoEl.srcObject = e.streams[0];
           document.getElementById('videoPlaceholder').classList.add('hidden');
-          updateConnStatusUI('Ao Vivo (Demo WebRTC P2P)', 'emerald');
+          updateConnStatusUI('Ao Vivo (Demo P2P)', 'emerald');
           videoEl.onloadedmetadata = () => {
             document.getElementById('resVal').innerText = `${videoEl.videoWidth} x ${videoEl.videoHeight}`;
+            resizeAnnotationCanvas();
           };
         };
 
@@ -1145,243 +1354,175 @@
         await loopbackHostPC.setRemoteDescription(answer);
 
         switchToLiveView('TÉCNICO (DEMO)', 'DEMO-P2P');
-        document.getElementById('techClickCapture').classList.remove('hidden');
-        showToast('Demo WebRTC P2P ativa! Clique no vídeo para testar o ponteiro guia.', 'success');
+        document.getElementById('techToolbar').classList.remove('hidden');
+        document.getElementById('techInteractionLayer').classList.remove('hidden');
+        setActiveTool('pointer');
+        showToast('Demo ativa! Teste o Ponteiro Guia, Desenho na Tela e o modo Controle Real.', 'success');
       } catch (err) {
-        console.error('Erro na Demo Integrada:', err);
-        showToast('Não foi possível iniciar a demo WebRTC.', 'error');
+        console.error(err);
+        showToast('Erro ao iniciar a Demo Integrada.', 'error');
       }
     };
 
     // -------------------------------------------------------------
-    // 9. CONEXÃO SDP MANUAL (BASE64 SEM SERVIDOR)
+    // 12. MODO LOCAL (BROADCAST CHANNEL - 2 ABAS) E SDP MANUAL
     // -------------------------------------------------------------
-    window.createManualHostOffer = async function () {
-      try {
-        try {
-          localMediaStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-        } catch (e) {
-          localMediaStream = createSimulatedCanvasStream();
-          showToast('Usando Tela Simulada para oferta manual.', 'info');
+    function setupBroadcastChannel() {
+      if (broadcastChannel) broadcastChannel.close();
+      broadcastChannel = new BroadcastChannel('acessoweb_remoto_local_v2');
+
+      broadcastChannel.onmessage = async (event) => {
+        const msg = event.data;
+        if (!msg || msg.room !== currentRoomCode) return;
+
+        if (msg.type === 'TECH_CONNECT_REQUEST' && currentRole === 'host') {
+          await createNativeConnection(true);
+          const offer = await nativePeerConn.createOffer();
+          await nativePeerConn.setLocalDescription(offer);
+          broadcastChannel.postMessage({ type: 'SDP_OFFER', room: currentRoomCode, sdp: offer });
+        } else if (msg.type === 'SDP_OFFER' && currentRole === 'tech') {
+          await createNativeConnection(false);
+          await nativePeerConn.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+          const answer = await nativePeerConn.createAnswer();
+          await nativePeerConn.setLocalDescription(answer);
+          broadcastChannel.postMessage({ type: 'SDP_ANSWER', room: currentRoomCode, sdp: answer });
+        } else if (msg.type === 'SDP_ANSWER' && currentRole === 'host' && nativePeerConn) {
+          await nativePeerConn.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+        } else if (msg.type === 'ICE_CANDIDATE' && nativePeerConn) {
+          try { await nativePeerConn.addIceCandidate(new RTCIceCandidate(msg.candidate)); } catch (e) {}
         }
+      };
+    }
 
-        currentRole = 'host';
-        nativePeerConn = new RTCPeerConnection(rtcIceConfig);
+    async function createNativeConnection(isHost) {
+      if (nativePeerConn) nativePeerConn.close();
+      nativePeerConn = new RTCPeerConnection(rtcIceConfig);
+
+      nativePeerConn.onicecandidate = (e) => {
+        if (e.candidate && broadcastChannel) {
+          broadcastChannel.postMessage({ type: 'ICE_CANDIDATE', room: currentRoomCode, candidate: e.candidate });
+        }
+      };
+
+      if (isHost && localMediaStream) {
         localMediaStream.getTracks().forEach((t) => nativePeerConn.addTrack(t, localMediaStream));
-
-        const dc = nativePeerConn.createDataChannel('supportChannel');
-        setupNativeDataChannel(dc);
-
-        const offer = await nativePeerConn.createOffer();
-        await nativePeerConn.setLocalDescription(offer);
-
-        await waitForIceGathering(nativePeerConn);
-        const encoded = btoa(JSON.stringify(nativePeerConn.localDescription));
-        document.getElementById('manualOfferOut').value = encoded;
-        showToast('Código de Oferta gerado! Copie e envie ao técnico.', 'success');
-      } catch (err) {
-        showToast('Erro ao gerar oferta manual.', 'error');
-      }
-    };
-
-    window.createManualTechAnswer = async function () {
-      try {
-        const raw = document.getElementById('manualOfferIn').value.trim();
-        if (!raw) return showToast('Cole a oferta do cliente primeiro.', 'error');
-
-        const offerDesc = JSON.parse(atob(raw));
-        currentRole = 'tech';
-        nativePeerConn = new RTCPeerConnection(rtcIceConfig);
-
+        const ch = nativePeerConn.createDataChannel('supportChannel');
+        setupNativeDataChannel(ch);
+      } else {
         nativePeerConn.ondatachannel = (e) => setupNativeDataChannel(e.channel);
         nativePeerConn.ontrack = (e) => {
           const videoEl = document.getElementById('remoteVideo');
           videoEl.srcObject = e.streams[0];
           document.getElementById('videoPlaceholder').classList.add('hidden');
-          updateConnStatusUI('Ao Vivo (SDP Manual)', 'emerald');
+          updateConnStatusUI('Ao Vivo (Modo Local)', 'emerald');
+          videoEl.onloadedmetadata = () => {
+            document.getElementById('resVal').innerText = `${videoEl.videoWidth} x ${videoEl.videoHeight}`;
+            resizeAnnotationCanvas();
+          };
         };
+      }
+    }
 
-        await nativePeerConn.setRemoteDescription(new RTCSessionDescription(offerDesc));
+    function setupNativeDataChannel(channel) {
+      nativeDataChannel = channel;
+      channel.onopen = () => {
+        updateConnStatusUI('Conectado (P2P)', 'emerald');
+        startHeartbeatPing();
+        if (currentRole === 'host') {
+          sendDataPayload({ type: 'agent_status', active: isLocalAgentConnected });
+        }
+      };
+      channel.onmessage = (e) => handleIncomingData(e.data);
+    }
+
+    // Conexão Manual SDP (Base64)
+    window.manualCreateOffer = async function () {
+      try {
+        localMediaStream = createSimulatedCanvasStream();
+        currentRole = 'host';
+        await createNativeConnection(true);
+        const offer = await nativePeerConn.createOffer();
+        await nativePeerConn.setLocalDescription(offer);
+        setTimeout(() => {
+          const encoded = btoa(JSON.stringify(nativePeerConn.localDescription));
+          document.getElementById('manualSdpInput').value = encoded;
+          showToast('Oferta gerada! Copie e envie ao técnico.', 'success');
+        }, 600);
+      } catch (e) { showToast('Erro ao gerar oferta.', 'error'); }
+    };
+
+    window.manualAcceptOffer = async function () {
+      try {
+        const raw = document.getElementById('manualSdpInput').value.trim();
+        const offer = JSON.parse(atob(raw));
+        currentRole = 'tech';
+        await createNativeConnection(false);
+        await nativePeerConn.setRemoteDescription(new RTCSessionDescription(offer));
         const answer = await nativePeerConn.createAnswer();
         await nativePeerConn.setLocalDescription(answer);
-
-        await waitForIceGathering(nativePeerConn);
-        const encoded = btoa(JSON.stringify(nativePeerConn.localDescription));
-        document.getElementById('manualAnswerOut').value = encoded;
-
-        toggleModal('modalManualSDP', false);
-        switchToLiveView('TÉCNICO', 'MANUAL');
-        document.getElementById('techClickCapture').classList.remove('hidden');
-        showToast('Resposta gerada! Copie e devolva ao cliente (reabra SDP Manual se precisar copiar).', 'success');
-        copyStringToClipboard(encoded);
-      } catch (err) {
-        showToast('Código de oferta inválido.', 'error');
-      }
+        setTimeout(() => {
+          const encoded = btoa(JSON.stringify(nativePeerConn.localDescription));
+          document.getElementById('manualSdpInput').value = encoded;
+          toggleModal('modalManualSDP', false);
+          switchToLiveView('TÉCNICO', 'MANUAL');
+          document.getElementById('techToolbar').classList.remove('hidden');
+          document.getElementById('techInteractionLayer').classList.remove('hidden');
+          showToast('Resposta gerada! Copie do modal (ou reabra) e envie ao cliente.', 'success');
+        }, 600);
+      } catch (e) { showToast('Código de Oferta inválido.', 'error'); }
     };
 
-    window.applyManualHostAnswer = async function () {
+    window.manualAcceptAnswer = async function () {
       try {
-        const raw = document.getElementById('manualAnswerIn').value.trim();
-        if (!raw || !nativePeerConn) return showToast('Gere a oferta e cole a resposta do técnico.', 'error');
-
-        const answerDesc = JSON.parse(atob(raw));
-        await nativePeerConn.setRemoteDescription(new RTCSessionDescription(answerDesc));
+        const raw = document.getElementById('manualSdpInput').value.trim();
+        const answer = JSON.parse(atob(raw));
+        await nativePeerConn.setRemoteDescription(new RTCSessionDescription(answer));
         toggleModal('modalManualSDP', false);
         switchToLiveView('CLIENTE', 'MANUAL');
-        document.getElementById('hostPreviewOverlay').classList.remove('hidden');
+        document.getElementById('remoteVideo').srcObject = localMediaStream;
         document.getElementById('videoPlaceholder').classList.add('hidden');
-        showToast('Conexão Manual P2P estabelecida!', 'success');
-      } catch (err) {
-        showToast('Código de resposta inválido.', 'error');
-      }
+        showToast('Conexão SDP finalizada!', 'success');
+      } catch (e) { showToast('Código de Resposta inválido.', 'error'); }
     };
 
-    function waitForIceGathering(pc) {
-      return new Promise((resolve) => {
-        if (pc.iceGatheringState === 'complete') return resolve();
-        const check = () => {
-          if (pc.iceGatheringState === 'complete') {
-            pc.removeEventListener('icegatheringstatechange', check);
-            resolve();
-          }
-        };
-        pc.addEventListener('icegatheringstatechange', check);
-        setTimeout(resolve, 2500);
-      });
-    }
-
     // -------------------------------------------------------------
-    // 10. MENSAGENS P2P, PONTEIRO GUIA VISUAL E CHAT
+    // 13. CHAT, TELA SIMULADA E UTILITÁRIOS DE UI
     // -------------------------------------------------------------
-    function sendP2PMessage(payloadObj) {
-      const serialized = JSON.stringify(payloadObj);
-      if (activeDataConn && activeDataConn.open) {
-        activeDataConn.send(serialized);
-        return true;
-      }
-      if (nativeDataChannel && nativeDataChannel.readyState === 'open') {
-        nativeDataChannel.send(serialized);
-        return true;
-      }
-      return false;
-    }
-
-    function handleIncomingDataMessage(raw) {
-      try {
-        const msg = typeof raw === 'string' ? JSON.parse(raw) : raw;
-        if (msg.type === 'ping') {
-          sendP2PMessage({ type: 'pong', timestamp: msg.timestamp });
-        } else if (msg.type === 'pong') {
-          const latency = Math.max(1, Date.now() - msg.timestamp);
-          document.getElementById('pingVal').innerText = `${latency} ms`;
-        } else if (msg.type === 'chat') {
-          appendChatMessage(msg.sender, msg.text, 'remote', msg.timestamp);
-        } else if (msg.type === 'pointer') {
-          renderVisualPointer(msg.x, msg.y, msg.label);
-        }
-      } catch (e) {}
-    }
-
-    function setupPointerClickListener() {
-      const captureEl = document.getElementById('techClickCapture');
-      captureEl.addEventListener('click', (e) => {
-        if (!isPointerToolActive) return;
-        const rect = captureEl.getBoundingClientRect();
-        const relX = (e.clientX - rect.left) / rect.width;
-        const relY = (e.clientY - rect.top) / rect.height;
-        const label = document.getElementById('pointerLabelSelect').value;
-
-        renderVisualPointer(relX, relY, label);
-        sendP2PMessage({ type: 'pointer', x: relX, y: relY, label });
-      });
-    }
-
-    function renderVisualPointer(relX, relY, label = 'Clique Aqui') {
-      const layer = document.getElementById('pointerOverlayLayer');
-      const wrapper = document.createElement('div');
-      wrapper.style.position = 'absolute';
-      wrapper.style.left = `${relX * 100}%`;
-      wrapper.style.top = `${relY * 100}%`;
-
-      wrapper.innerHTML = `
-        <div class="pointer-ring absolute w-14 h-14 rounded-full border-4 border-sky-400 bg-sky-400/20"></div>
-        <div class="absolute -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-sky-400 shadow-lg shadow-sky-400/80"></div>
-        <div class="absolute left-4 -top-7 whitespace-nowrap px-2.5 py-1 rounded-lg bg-sky-600 text-white text-[11px] font-bold shadow-lg border border-sky-400/60">
-          ${escapeHtml(label)}
-        </div>
-      `;
-
-      layer.appendChild(wrapper);
-      playPingSound();
-      setTimeout(() => wrapper.remove(), 1600);
-    }
-
-    function playPingSound() {
-      try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        const ctx = new AudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(520, ctx.currentTime + 0.16);
-        gain.gain.setValueAtTime(0.12, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.18);
-      } catch (e) {}
-    }
-
-    window.handleChatSubmit = function (e) {
+    window.handleSendChat = function (e) {
       e.preventDefault();
       const input = document.getElementById('chatInput');
       const text = input.value.trim();
       if (!text) return;
-
-      const sender = currentRole === 'host' ? 'Cliente' : 'Técnico';
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-      appendChatMessage(sender, text, 'local', timeStr);
-      sendP2PMessage({ type: 'chat', sender, text, timestamp: timeStr });
+      const sender = currentRole === 'tech' ? 'Técnico' : 'Cliente';
+      appendChatMessage(sender, text, timeStr, true);
+      sendDataPayload({ type: 'chat', sender, text, timestamp: timeStr });
       input.value = '';
     };
 
-    window.sendQuickReply = function (text) {
+    window.sendQuickMacro = function (text) {
       document.getElementById('chatInput').value = text;
-      handleChatSubmit(new Event('submit'));
+      handleSendChat(new Event('submit'));
     };
 
-    function appendChatMessage(sender, text, side, timeStr = '') {
-      const box = document.getElementById('chatMessages');
+    function appendChatMessage(sender, text, timeStr, isMe) {
+      const container = document.getElementById('chatMessages');
       const div = document.createElement('div');
-
-      if (side === 'system') {
-        div.className = 'text-center text-[11px] text-slate-400 bg-slate-950/70 py-1.5 px-3 rounded-xl border border-slate-800/70';
-        div.innerText = text;
-      } else {
-        const isLocal = side === 'local';
-        div.className = `flex flex-col ${isLocal ? 'items-end' : 'items-start'}`;
-        div.innerHTML = `
-          <span class="text-[10px] text-slate-500 mb-1 px-1">${escapeHtml(sender)} ${timeStr ? '• ' + timeStr : ''}</span>
-          <div class="max-w-[85%] px-3.5 py-2 rounded-2xl text-xs leading-relaxed ${
-            isLocal
-              ? 'bg-sky-600 text-white rounded-tr-sm'
-              : 'bg-slate-800 text-slate-100 border border-slate-700 rounded-tl-sm'
-          }">
-            ${escapeHtml(text)}
+      div.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
+      div.innerHTML = `
+        <div class="max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs ${isMe ? 'bg-sky-600 text-white rounded-br-sm' : 'bg-slate-800 text-slate-200 rounded-bl-sm'}">
+          <div class="flex items-center justify-between gap-3 mb-1 opacity-75 text-[10px]">
+            <span class="font-bold">${escapeHtml(sender)}</span>
+            <span>${escapeHtml(timeStr)}</span>
           </div>
-        `;
-      }
-
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
+          <p class="leading-relaxed break-words">${escapeHtml(text)}</p>
+          ${!isMe ? `<button onclick="copyTextToClipboard('${escapeHtml(text).replace(/'/g, "\\'")}', 'Texto copiado!')" class="mt-1.5 text-[10px] underline text-sky-300 hover:text-sky-200">Copiar texto</button>` : ''}
+        </div>
+      `;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
     }
 
-    // -------------------------------------------------------------
-    // 11. CANVAS SIMULADO (DEMO 30 FPS) E UTILITÁRIOS DE VÍDEO
-    // -------------------------------------------------------------
     function createSimulatedCanvasStream() {
       const canvas = document.createElement('canvas');
       canvas.width = 1280;
@@ -1389,183 +1530,180 @@
       const ctx = canvas.getContext('2d');
       let frame = 0;
 
-      function draw() {
+      function drawDemoFrame() {
         frame++;
-        // Fundo simulado de desktop corporativo
-        const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        grad.addColorStop(0, '#0f172a');
-        grad.addColorStop(1, '#1e293b');
-        ctx.fillStyle = grad;
+        ctx.fillStyle = '#0f172a';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Janela simulada de sistema
-        ctx.fillStyle = '#0b1220';
-        ctx.strokeStyle = '#334155';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.roundRect(140, 90, 1000, 520, 18);
-        ctx.fill();
-        ctx.stroke();
+        // Barra superior simulada de desktop
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(0, 0, canvas.width, 48);
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 18px Inter, sans-serif';
+        ctx.fillText('Desktop Remoto Simulado — AcessoWeb', 24, 30);
 
-        // Barra de título
+        // Janela de sistema simulada
         ctx.fillStyle = '#1e293b';
         ctx.beginPath();
-        ctx.roundRect(140, 90, 1000, 44, [18, 18, 0, 0]);
+        ctx.roundRect(120, 110, 1040, 520, 16);
         ctx.fill();
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 2;
+        ctx.stroke();
 
-        // Botões da janela
-        ['#ef4444', '#f59e0b', '#10b981'].forEach((c, idx) => {
-          ctx.fillStyle = c;
-          ctx.beginPath();
-          ctx.arc(170 + idx * 22, 112, 6, 0, Math.PI * 2);
-          ctx.fill();
-        });
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 28px Inter, sans-serif';
+        ctx.fillText('Painel de Configurações do Cliente', 160, 175);
 
-        ctx.fillStyle = '#e2e8f0';
-        ctx.font = 'bold 16px Inter, sans-serif';
-        ctx.fillText('Painel do Cliente — Ambiente de Demonstração WebRTC (30 FPS)', 250, 118);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '18px Inter, sans-serif';
+        ctx.fillText('Use o Ponteiro Guia ou Desenho Livre para testar a interação em tempo real.', 160, 215);
+
+        // Botões simulados
+        const pulse = Math.sin(frame * 0.05) * 4;
+        ctx.fillStyle = '#0284c7';
+        ctx.beginPath();
+        ctx.roundRect(160, 270, 240, 56, 12);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 18px Inter, sans-serif';
+        ctx.fillText('Salvar Alterações', 200, 305);
+
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.roundRect(430, 270, 260, 56, 12);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('Atualizar Sistema', 480, 305);
 
         // Relógio ao vivo
         ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 42px JetBrains Mono, monospace';
-        ctx.fillText(new Date().toLocaleTimeString(), 190, 220);
+        ctx.font = 'bold 22px monospace';
+        ctx.fillText(`Hora do Cliente: ${new Date().toLocaleTimeString()}`, 160, 580);
+        ctx.fillStyle = '#64748b';
+        ctx.font = '14px monospace';
+        ctx.fillText(`Frame #${frame} • 30 FPS`, 980, 580 + pulse * 0.2);
 
-        // Gráfico animado de CPU/Rede
-        ctx.strokeStyle = '#10b981';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        for (let i = 0; i < 40; i++) {
-          const x = 190 + i * 22;
-          const y = 380 + Math.sin((frame + i * 4) * 0.1) * 38;
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
+        if (localMediaStream && localMediaStream.active) {
+          requestAnimationFrame(drawDemoFrame);
         }
-        ctx.stroke();
-
-        // Botão de teste na tela simulada
-        ctx.fillStyle = '#0284c7';
-        ctx.beginPath();
-        ctx.roundRect(190, 470, 260, 56, 12);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 16px Inter, sans-serif';
-        ctx.fillText('Botão de Teste (Clique Aqui)', 215, 504);
-
-        // Cursor animado
-        const cx = 600 + Math.cos(frame * 0.03) * 220;
-        const cy = 320 + Math.sin(frame * 0.04) * 110;
-        ctx.fillStyle = '#f8fafc';
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + 16, cy + 14);
-        ctx.lineTo(cx + 7, cy + 16);
-        ctx.lineTo(cx + 3, cy + 24);
-        ctx.closePath();
-        ctx.fill();
-
-        demoAnimFrame = requestAnimationFrame(draw);
       }
-
-      draw();
+      requestAnimationFrame(drawDemoFrame);
       return canvas.captureStream(30);
     }
 
-    window.togglePointerTool = function () {
-      isPointerToolActive = !isPointerToolActive;
-      const btn = document.getElementById('btnTogglePointer');
-      if (isPointerToolActive) {
-        btn.className = 'px-3 py-1.5 rounded-xl bg-sky-500/20 text-sky-300 border border-sky-500/40 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer';
-        btn.innerHTML = '<i data-lucide="crosshair" class="w-3.5 h-3.5"></i><span>Ponteiro Guia: ON</span>';
-      } else {
-        btn.className = 'px-3 py-1.5 rounded-xl bg-slate-800 text-slate-400 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer';
-        btn.innerHTML = '<i data-lucide="crosshair" class="w-3.5 h-3.5"></i><span>Ponteiro Guia: OFF</span>';
-      }
-      lucide.createIcons();
-    };
-
-    window.toggleVideoFit = function () {
-      const v = document.getElementById('remoteVideo');
-      const label = document.getElementById('fitModeText');
-      if (videoFitMode === 'contain') {
-        videoFitMode = 'cover';
-        v.classList.remove('object-contain');
-        v.classList.add('object-cover');
-        label.innerText = 'Preencher';
-      } else {
-        videoFitMode = 'contain';
-        v.classList.remove('object-cover');
-        v.classList.add('object-contain');
-        label.innerText = 'Ajustar';
-      }
-    };
-
-    window.captureScreenshot = function () {
-      const video = document.getElementById('remoteVideo');
-      if (!video || !video.videoWidth) {
-        return showToast('Nenhum vídeo ativo para capturar.', 'error');
-      }
-      const c = document.createElement('canvas');
-      c.width = video.videoWidth;
-      c.height = video.videoHeight;
-      c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
-      const link = document.createElement('a');
-      link.download = `acessoweb-print-${Date.now()}.png`;
-      link.href = c.toDataURL('image/png');
-      link.click();
-      showToast('Screenshot PNG salvo!', 'success');
-    };
-
-    window.toggleFullscreen = function () {
-      const stage = document.getElementById('videoStage');
-      if (!document.fullscreenElement) {
-        stage.requestFullscreen?.().catch(() => {});
-      } else {
-        document.exitFullscreen?.().catch(() => {});
-      }
-    };
-
-    // -------------------------------------------------------------
-    // 12. CONTROLE DE TELAS, TELEMETRIA E ENCERRAMENTO
-    // -------------------------------------------------------------
-    function switchToLiveView(roleLabel, codeLabel) {
+    function switchToLiveView(roleLabel, code) {
       document.getElementById('homeScreen').classList.add('hidden');
       document.getElementById('liveSessionContainer').classList.remove('hidden');
-      document.getElementById('roleBadge').innerText = roleLabel;
-      document.getElementById('liveRoomCode').innerText = codeLabel;
-
+      document.getElementById('liveRoleBadge').innerText = roleLabel;
+      document.getElementById('liveCodeDisplay').innerText = code;
       sessionStartTime = Date.now();
       if (sessionTimerInterval) clearInterval(sessionTimerInterval);
       sessionTimerInterval = setInterval(() => {
         const diff = Math.floor((Date.now() - sessionStartTime) / 1000);
         const mins = String(Math.floor(diff / 60)).padStart(2, '0');
         const secs = String(diff % 60).padStart(2, '0');
-        document.getElementById('sessionTimer').innerText = `${mins}:${secs}`;
+        document.getElementById('timerVal').innerText = `${mins}:${secs}`;
       }, 1000);
+      setTimeout(resizeAnnotationCanvas, 100);
+      lucide.createIcons();
     }
 
-    function startPingHeartbeat() {
+    function startHeartbeatPing() {
       if (pingInterval) clearInterval(pingInterval);
       pingInterval = setInterval(() => {
-        sendP2PMessage({ type: 'ping', timestamp: Date.now() });
+        sendDataPayload({ type: 'ping', timestamp: Date.now() });
       }, 2500);
     }
 
-    function updateConnStatusUI(text, color = 'amber') {
+    function updateConnStatusUI(text, color) {
       const dot = document.getElementById('connStatusDot');
-      const txt = document.getElementById('connStatusText');
+      const label = document.getElementById('connStatusText');
+      label.innerText = text;
       const colorMap = {
         emerald: 'bg-emerald-400',
         amber: 'bg-amber-400 animate-pulse',
         rose: 'bg-rose-500'
       };
-      dot.className = `w-2 h-2 rounded-full ${colorMap[color] || 'bg-amber-400'}`;
-      txt.innerText = text;
+      dot.className = `w-2 h-2 rounded-full ${colorMap[color] || 'bg-sky-400'}`;
+    }
+
+    window.toggleVideoFit = function () {
+      const video = document.getElementById('remoteVideo');
+      videoFitMode = videoFitMode === 'contain' ? 'cover' : 'contain';
+      video.classList.toggle('object-contain', videoFitMode === 'contain');
+      video.classList.toggle('object-cover', videoFitMode === 'cover');
+    };
+
+    window.captureScreenshot = function () {
+      const video = document.getElementById('remoteVideo');
+      if (!video.videoWidth) return showToast('Nenhum vídeo ativo para capturar.', 'error');
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `suporte-${Date.now()}.png`;
+      a.click();
+      showToast('Screenshot salvo em PNG!', 'success');
+    };
+
+    window.toggleFullscreen = function () {
+      const el = document.getElementById('videoStageWrapper');
+      if (!document.fullscreenElement) el.requestFullscreen?.();
+      else document.exitFullscreen?.();
+    };
+
+    window.toggleModal = function (id, show) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.toggle('hidden', !show);
+      lucide.createIcons();
+    };
+
+    window.copyTextToClipboard = function (text, successMsg = 'Copiado!') {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast(successMsg, 'success');
+      } catch (e) {
+        showToast('Não foi possível copiar automaticamente.', 'error');
+      }
+      document.body.removeChild(textarea);
+    };
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const colors = {
+        success: 'bg-emerald-950/95 border-emerald-500/40 text-emerald-200',
+        error: 'bg-rose-950/95 border-rose-500/40 text-rose-200',
+        info: 'bg-slate-900/95 border-sky-500/40 text-sky-100'
+      };
+      toast.className = `pointer-events-auto border rounded-xl px-4 py-3 text-xs font-medium shadow-xl backdrop-blur transition ${colors[type] || colors.info}`;
+      toast.innerText = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
     }
 
     window.disconnectSession = function (silent = false) {
       if (sessionTimerInterval) clearInterval(sessionTimerInterval);
       if (pingInterval) clearInterval(pingInterval);
-      if (demoAnimFrame) cancelAnimationFrame(demoAnimFrame);
 
       if (activeDataConn) { try { activeDataConn.close(); } catch (e) {} activeDataConn = null; }
       if (activeMediaCall) { try { activeMediaCall.close(); } catch (e) {} activeMediaCall = null; }
@@ -1578,73 +1716,16 @@
       document.getElementById('remoteVideo').srcObject = null;
       document.getElementById('liveSessionContainer').classList.add('hidden');
       document.getElementById('homeScreen').classList.remove('hidden');
-      document.getElementById('techClickCapture').classList.add('hidden');
+      document.getElementById('techToolbar').classList.add('hidden');
+      document.getElementById('techInteractionLayer').classList.add('hidden');
+      document.getElementById('controlStatusBanner').classList.add('hidden');
       document.getElementById('hostPreviewOverlay').classList.add('hidden');
+      document.getElementById('remoteVirtualCursor').classList.add('hidden');
       document.getElementById('videoPlaceholder').classList.remove('hidden');
-      document.getElementById('quickMacrosContainer').classList.remove('hidden');
-      document.getElementById('pingVal').innerText = '-- ms';
-      document.getElementById('resVal').innerText = '-- x --';
+      clearRemoteAnnotations(false);
 
-      if (!silent) {
-        showToast('Sessão encerrada com sucesso.', 'info');
-      }
+      if (!silent) showToast('Sessão encerrada com sucesso.', 'info');
     };
-
-    // -------------------------------------------------------------
-    // 13. UTILITÁRIOS DE UI (MODAIS, TOASTS, CLIPBOARD)
-    // -------------------------------------------------------------
-    window.toggleModal = function (id, show) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.classList.toggle('hidden', !show);
-    };
-
-    window.copyTextFromEl = function (elId) {
-      const val = document.getElementById(elId).value;
-      if (!val) return showToast('Nada para copiar.', 'error');
-      copyStringToClipboard(val);
-      showToast('Copiado para a área de transferência!', 'success');
-    };
-
-    function copyStringToClipboard(text) {
-      const temp = document.createElement('textarea');
-      temp.value = text;
-      temp.style.position = 'fixed';
-      temp.style.opacity = '0';
-      document.body.appendChild(temp);
-      temp.select();
-      try {
-        document.execCommand('copy');
-      } catch (e) {}
-      document.body.removeChild(temp);
-    }
-
-    function showToast(message, type = 'info') {
-      const container = document.getElementById('toastContainer');
-      const toast = document.createElement('div');
-      const styles = {
-        success: 'bg-emerald-950/95 border-emerald-500/40 text-emerald-200',
-        error: 'bg-rose-950/95 border-rose-500/40 text-rose-200',
-        info: 'bg-slate-900/95 border-sky-500/40 text-slate-200'
-      };
-      toast.className = `toast-enter pointer-events-auto px-4 py-3 rounded-2xl border shadow-xl text-xs font-medium flex items-center gap-2.5 ${styles[type] || styles.info}`;
-      toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
-      container.appendChild(toast);
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transition = 'opacity 0.25s';
-        setTimeout(() => toast.remove(), 250);
-      }, 4000);
-    }
-
-    function escapeHtml(str) {
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
   </script>
 </body>
 </html>
