@@ -203,7 +203,7 @@
               <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/15 text-sky-400 text-xs font-semibold border border-sky-500/20">
                 <i data-lucide="headset" class="w-3.5 h-3.5"></i> Modo Técnico
               </span>
-              <!-- <span id="techModeLabel" class="text-[11px] text-slate-500 font-medium">Sinalização: PeerJS Nuvem</span> -->
+              <span id="techModeLabel" class="text-[11px] text-slate-500 font-medium">Sinalização: PeerJS Nuvem</span>
             </div>
 
             <h2 class="text-xl font-bold text-white mb-2">Acessar Computador do Cliente</h2>
@@ -255,7 +255,7 @@
               <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 text-xs font-semibold border border-emerald-500/20">
                 <i data-lucide="monitor" class="w-3.5 h-3.5"></i> Modo Cliente
               </span>
-              <!-- <span id="hostModeLabel" class="text-[11px] text-slate-500 font-medium">Sinalização: PeerJS Nuvem</span> -->
+              <span id="hostModeLabel" class="text-[11px] text-slate-500 font-medium">Sinalização: PeerJS Nuvem</span>
             </div>
 
             <h2 class="text-xl font-bold text-white mb-2">Receber Suporte Remoto</h2>
@@ -703,25 +703,27 @@
     // -------------------------------------------------------------
     // 3. ATIVADOR RÁPIDO WINDOWS (.BAT SEM PYTHON / SEM INSTALAÇÃO)
     // -------------------------------------------------------------
-    function toPowerShellBase64(str) {
-      // Converte string JS para UTF-16LE Base64 aceito pelo powershell -EncodedCommand
-      const bytes = new Uint8Array(str.length * 2);
-      for (let i = 0; i < str.length; i++) {
-        const code = str.charCodeAt(i);
-        bytes[i * 2] = code & 0xff;
-        bytes[i * 2 + 1] = (code >> 8) & 0xff;
-      }
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return btoa(binary);
-    }
-
     window.downloadWindowsBridge = function() {
-      const psScript = `
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type @"
+      const batTemplate = `@echo off
+title Ottimize Tecnologia - Controle Remoto Ativo
+color 0B
+set "BAT_PATH=%~f0"
+echo =========================================================
+echo   Ottimize Tecnologia - Controle Remoto (Sem Instalacao)
+echo =========================================================
+echo.
+echo Iniciando ponte local segura em http://127.0.0.1:8765 ...
+echo.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$c=[IO.File]::ReadAllText($env:BAT_PATH,[Text.Encoding]::UTF8);$i=$c.IndexOf('#PS_START#');if($i -ge 0){$f=Join-Path $env:TEMP ('otm_ctrl_'+$PID+'.ps1');[IO.File]::WriteAllText($f,$c.Substring($i),[Text.Encoding]::UTF8);try{& $f}finally{Remove-Item $f -Force -ErrorAction SilentlyContinue}}"
+echo.
+pause
+exit /b
+#PS_START#
+$ErrorActionPreference = "Stop"
+
+try {
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type @"
 using System;
 using System.Runtime.InteropServices;
 public class RemoteInput {
@@ -759,119 +761,166 @@ public class RemoteInput {
     }
 }
 "@
-[RemoteInput]::SetProcessDPIAware() | Out-Null
-
-$listener = New-Object System.Net.HttpListener
-$listener.Prefixes.Add("http://127.0.0.1:8765/")
-$listener.Prefixes.Add("http://localhost:8765/")
-try {
-    $listener.Start()
+    try { [RemoteInput]::SetProcessDPIAware() | Out-Null } catch {}
 } catch {
-    Write-Host "[AVISO] A porta 8765 ja esta em uso ou bloqueada." -ForegroundColor Yellow
-    Read-Host "Pressione Enter para sair"
+    Write-Host "[ERRO] Falha ao carregar controles graficos do Windows: $_" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "[OK] Controle Remoto ATIVO! Pode minimizar esta janela." -ForegroundColor Green
+$port = 8765
+$listener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Loopback, $port)
+try {
+    $listener.Start()
+} catch {
+    Write-Host "[ERRO] A porta $port ja esta em uso. Feche outra janela do ativador e tente novamente." -ForegroundColor Yellow
+    exit 1
+}
 
-while ($listener.IsListening) {
-    $context = $listener.GetContext()
-    $req = $context.Request
-    $res = $context.Response
+Write-Host "[OK] Controle Remoto ATIVO na porta $port (Windows / Windows Server)!" -ForegroundColor Green
+Write-Host "Pode minimizar esta janela. Para encerrar o controle, basta fecha-la." -ForegroundColor Cyan
 
-    $res.Headers.Add("Access-Control-Allow-Origin", "*")
-    $res.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-    $res.Headers.Add("Access-Control-Allow-Headers", "Content-Type")
-    $res.Headers.Add("Access-Control-Allow-Private-Network", "true")
+$crlf = ([char]13) + ([char]10)
+$corsHeaders = "Access-Control-Allow-Origin: *$crlf" +
+               "Access-Control-Allow-Methods: GET, POST, OPTIONS$crlf" +
+               "Access-Control-Allow-Headers: Content-Type$crlf" +
+               "Access-Control-Allow-Private-Network: true$crlf" +
+               "Connection: close$crlf"
 
-    if ($req.HttpMethod -eq "OPTIONS") {
-        $res.StatusCode = 204
-        $res.Close()
-        continue
+function Send-HttpResponse($stream, $status, $body, $contentType) {
+    $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($body)
+    $header = "HTTP/1.1 $status$crlf" +
+              $corsHeaders +
+              "Content-Type: $contentType$crlf" +
+              "Content-Length: $($bodyBytes.Length)$crlf$crlf"
+    $headerBytes = [System.Text.Encoding]::ASCII.GetBytes($header)
+    $stream.Write($headerBytes, 0, $headerBytes.Length)
+    if ($bodyBytes.Length -gt 0) {
+        $stream.Write($bodyBytes, 0, $bodyBytes.Length)
     }
+    $stream.Flush()
+}
 
-    if ($req.Url.AbsolutePath -eq "/ping") {
-        $bytes = [System.Text.Encoding]::UTF8.GetBytes('{"status":"ok"}')
-        $res.ContentType = "application/json"
-        $res.OutputStream.Write($bytes, 0, $bytes.Length)
-        $res.Close()
-        continue
-    }
-
-    if ($req.HttpMethod -eq "POST" -and $req.Url.AbsolutePath -eq "/cmd") {
-        $reader = New-Object System.IO.StreamReader($req.InputStream, $req.ContentEncoding)
-        $body = $reader.ReadToEnd()
-        $reader.Close()
-
+try {
+    while ($true) {
+        $client = $listener.AcceptTcpClient()
         try {
-            $data = $body | ConvertFrom-Json
-            $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-            $w = $bounds.Width
-            $h = $bounds.Height
+            $client.ReceiveTimeout = 2000
+            $client.SendTimeout = 2000
+            $stream = $client.GetStream()
 
-            if ($data.action -eq "move") {
-                [RemoteInput]::Move([int]($data.x * $w), [int]($data.y * $h))
-            } elseif ($data.action -eq "click") {
-                if ($data.button -eq 2) {
-                    [RemoteInput]::RightClick([int]($data.x * $w), [int]($data.y * $h))
-                } else {
-                    [RemoteInput]::LeftClick([int]($data.x * $w), [int]($data.y * $h))
-                }
-            } elseif ($data.action -eq "dblclick") {
-                [RemoteInput]::DoubleClick([int]($data.x * $w), [int]($data.y * $h))
-            } elseif ($data.action -eq "scroll") {
-                [RemoteInput]::Scroll([int](-$data.deltaY))
-            } elseif ($data.action -eq "key") {
-                $k = [string]$data.key
-                switch ($k) {
-                    "Enter" { [System.Windows.Forms.SendKeys]::SendWait("{ENTER}") }
-                    "Backspace" { [System.Windows.Forms.SendKeys]::SendWait("{BACKSPACE}") }
-                    "Tab" { [System.Windows.Forms.SendKeys]::SendWait("{TAB}") }
-                    "Escape" { [System.Windows.Forms.SendKeys]::SendWait("{ESC}") }
-                    "Delete" { [System.Windows.Forms.SendKeys]::SendWait("{DELETE}") }
-                    "ArrowUp" { [System.Windows.Forms.SendKeys]::SendWait("{UP}") }
-                    "ArrowDown" { [System.Windows.Forms.SendKeys]::SendWait("{DOWN}") }
-                    "ArrowLeft" { [System.Windows.Forms.SendKeys]::SendWait("{LEFT}") }
-                    "ArrowRight" { [System.Windows.Forms.SendKeys]::SendWait("{RIGHT}") }
-                    " " { [System.Windows.Forms.SendKeys]::SendWait(" ") }
-                    default {
-                        if ($k.Length -eq 1) {
-                            $escaped = $k -replace '([+^%~(){}\\[\\]])', '{$1}'
-                            [System.Windows.Forms.SendKeys]::SendWait($escaped)
-                        }
-                    }
+            $ms = New-Object System.IO.MemoryStream
+            $buf = New-Object byte[] 4096
+            $headerEnd = -1
+            $rawHeaderStr = ""
+
+            while ($headerEnd -lt 0) {
+                $read = $stream.Read($buf, 0, $buf.Length)
+                if ($read -le 0) { break }
+                $ms.Write($buf, 0, $read)
+                $rawHeaderStr = [System.Text.Encoding]::ASCII.GetString($ms.ToArray())
+                $headerEnd = $rawHeaderStr.IndexOf("$crlf$crlf")
+                if ($ms.Length -gt 65536) { break }
+            }
+
+            if ($headerEnd -lt 0) {
+                $client.Close()
+                continue
+            }
+
+            $headerPart = $rawHeaderStr.Substring(0, $headerEnd)
+            $lines = $headerPart -split $crlf
+            $reqParts = $lines[0] -split " "
+            $method = $reqParts[0]
+            $path = if ($reqParts.Length -gt 1) { $reqParts[1] } else { "/" }
+
+            $contentLength = 0
+            foreach ($line in $lines) {
+                if ($line -match "^Content-Length:\\s*(\\d+)") {
+                    $contentLength = [int]$matches[1]
                 }
             }
-        } catch {}
 
-        $bytes = [System.Text.Encoding]::UTF8.GetBytes('{"ok":true}')
-        $res.ContentType = "application/json"
-        $res.OutputStream.Write($bytes, 0, $bytes.Length)
-        $res.Close()
-        continue
+            if ($method -eq "OPTIONS") {
+                Send-HttpResponse $stream "204 No Content" "" "text/plain"
+                continue
+            }
+
+            if ($path -eq "/ping") {
+                Send-HttpResponse $stream "200 OK" '{"status":"ok"}' "application/json"
+                continue
+            }
+
+            if ($method -eq "POST" -and $path -eq "/cmd") {
+                $allBytes = $ms.ToArray()
+                $bodyStart = $headerEnd + 4
+                $bodyStream = New-Object System.IO.MemoryStream
+                if ($allBytes.Length -gt $bodyStart) {
+                    $bodyStream.Write($allBytes, $bodyStart, $allBytes.Length - $bodyStart)
+                }
+                while ($bodyStream.Length -lt $contentLength) {
+                    $read = $stream.Read($buf, 0, $buf.Length)
+                    if ($read -le 0) { break }
+                    $bodyStream.Write($buf, 0, $read)
+                }
+                $body = [System.Text.Encoding]::UTF8.GetString($bodyStream.ToArray())
+
+                try {
+                    $data = $body | ConvertFrom-Json
+                    $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+                    $w = $bounds.Width
+                    $h = $bounds.Height
+
+                    if ($data.action -eq "move") {
+                        [RemoteInput]::Move([int]($data.x * $w), [int]($data.y * $h))
+                    } elseif ($data.action -eq "click") {
+                        if ($data.button -eq 2) {
+                            [RemoteInput]::RightClick([int]($data.x * $w), [int]($data.y * $h))
+                        } else {
+                            [RemoteInput]::LeftClick([int]($data.x * $w), [int]($data.y * $h))
+                        }
+                    } elseif ($data.action -eq "dblclick") {
+                        [RemoteInput]::DoubleClick([int]($data.x * $w), [int]($data.y * $h))
+                    } elseif ($data.action -eq "scroll") {
+                        [RemoteInput]::Scroll([int](-$data.deltaY))
+                    } elseif ($data.action -eq "key") {
+                        $k = [string]$data.key
+                        switch ($k) {
+                            "Enter"      { [System.Windows.Forms.SendKeys]::SendWait("{ENTER}") }
+                            "Backspace"  { [System.Windows.Forms.SendKeys]::SendWait("{BACKSPACE}") }
+                            "Tab"        { [System.Windows.Forms.SendKeys]::SendWait("{TAB}") }
+                            "Escape"     { [System.Windows.Forms.SendKeys]::SendWait("{ESC}") }
+                            "Delete"     { [System.Windows.Forms.SendKeys]::SendWait("{DELETE}") }
+                            "ArrowUp"    { [System.Windows.Forms.SendKeys]::SendWait("{UP}") }
+                            "ArrowDown"  { [System.Windows.Forms.SendKeys]::SendWait("{DOWN}") }
+                            "ArrowLeft"  { [System.Windows.Forms.SendKeys]::SendWait("{LEFT}") }
+                            "ArrowRight" { [System.Windows.Forms.SendKeys]::SendWait("{RIGHT}") }
+                            " "          { [System.Windows.Forms.SendKeys]::SendWait(" ") }
+                            default {
+                                if ($k.Length -eq 1) {
+                                    $escaped = $k -replace '([+^%~(){}\\[\\]])', '{$1}'
+                                    [System.Windows.Forms.SendKeys]::SendWait($escaped)
+                                }
+                            }
+                        }
+                    }
+                } catch {}
+
+                Send-HttpResponse $stream "200 OK" '{"ok":true}' "application/json"
+                continue
+            }
+
+            Send-HttpResponse $stream "404 Not Found" '{"error":"not_found"}' "application/json"
+        } catch {
+        } finally {
+            try { $client.Close() } catch {}
+        }
     }
-
-    $res.StatusCode = 404
-    $res.Close()
+} finally {
+    try { $listener.Stop() } catch {}
 }
 `;
-      const encoded = toPowerShellBase64(psScript.trim());
-      const batContent = [
-        '@echo off',
-        'chcp 65001 >nul',
-        'title AcessoWeb Remoto - Controle Ativo',
-        'color 0B',
-        'echo =========================================================',
-        'echo   AcessoWeb Remoto - Controle Real (Sem Instalacao)',
-        'echo =========================================================',
-        'echo.',
-        'echo Iniciando ponte local segura em http://127.0.0.1:8765 ...',
-        'echo Para encerrar o controle, basta fechar esta janela.',
-        'echo.',
-        `powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encoded}`,
-        'pause'
-      ].join('\r\n');
 
+      const batContent = batTemplate.replace(/\r?\n/g, '\r\n');
       const blob = new Blob([batContent], { type: 'application/x-bat;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -882,7 +931,7 @@ while ($listener.IsListening) {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      showToast("Arquivo AtivarControleRemoto.bat baixado! Basta dar 2 cliques para ativar.", "success");
+      showToast("Arquivo AtivarControleRemoto.bat baixado! Compatível com Windows e Windows Server.", "success");
     };
 
     function startLocalBridgeMonitor() {
