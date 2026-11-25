@@ -154,6 +154,13 @@
           <span>Controle Real (1 Clique)</span>
         </button>
 
+        <!-- Botão Firewall / TURN (pfSense) -->
+        <button onclick="openTurnModal()" title="Configurar TURN para pfSense / Firewall restrito" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold transition">
+          <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Firewall / TURN</span>
+          <span id="turnRelayBadge" class="hidden px-1.5 py-0.5 rounded bg-amber-500/30 text-[10px] font-bold">443</span>
+        </button>
+
         <!-- Botão Modos -->
         <button onclick="toggleModal('modalModeSelect', true)" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition">
           <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-sky-400"></i>
@@ -603,17 +610,237 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL: FIREWALL / PFSENSE (TURN 443) ==================== -->
+  <div id="modalTurnConfig" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="shield-alert" class="w-5 h-5 text-amber-400"></i>
+          Firewall / pfSense — Configuração TURN (Porta 443)
+        </h3>
+        <button onclick="toggleModal('modalTurnConfig', false)" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed">
+        O <strong>pfSense</strong> utiliza <em>NAT Simétrico</em> por padrão (portas UDP aleatórias) e frequentemente bloqueia P2P direto. Para atravessar o pfSense sem abrir portas no cliente, o WebRTC precisa de um servidor <strong>TURN sobre TCP/TLS (porta 443)</strong>.
+      </p>
+
+      <!-- Toggle Forçar Relay -->
+      <label class="flex items-start gap-3 p-3.5 rounded-xl bg-slate-950 border border-amber-500/30 cursor-pointer">
+        <input id="chkForceTurnRelay" type="checkbox" class="mt-0.5 w-4 h-4 accent-amber-500 rounded" />
+        <div>
+          <p class="text-xs font-bold text-amber-300">Forçar Modo Relay (Recomendado para pfSense / Firewall Restrito)</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Ignora tentativas UDP bloqueadas e força todo o tráfego via TURN (porta 443/80), acelerando a conexão.</p>
+        </div>
+      </label>
+
+      <!-- Servidor TURN Próprio (Opcional) -->
+      <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-bold text-white">Servidor TURN Próprio (Opcional — Coturn / Metered / Twilio)</p>
+          <span class="text-[10px] text-emerald-400 font-semibold">TURN Público 443 já ativo</span>
+        </div>
+        <p class="text-[11px] text-slate-400">
+          O site já vem com servidores TURN públicos (TCP/TLS 443). Para uso corporativo intenso sem limite de banda, informe abaixo seu próprio servidor TURN (ex.: Metered gratuito ou Coturn em VPS):
+        </p>
+        <div class="space-y-2">
+          <input id="inputTurnUrl" type="text" placeholder="Ex: turns:global.relay.metered.ca:443?transport=tcp" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono text-white placeholder-slate-500 outline-none focus:border-sky-500" />
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input id="inputTurnUser" type="text" placeholder="Usuário TURN" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono text-white placeholder-slate-500 outline-none focus:border-sky-500" />
+            <input id="inputTurnPass" type="password" placeholder="Credencial / Senha TURN" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono text-white placeholder-slate-500 outline-none focus:border-sky-500" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Resultado do Diagnóstico ICE/TURN -->
+      <div id="turnDiagBox" class="hidden p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-300 space-y-1"></div>
+
+      <!-- Dica rápida para quem administra o pfSense -->
+      <div class="p-3 rounded-xl bg-sky-950/30 border border-sky-500/20 text-[11px] text-slate-300 space-y-1">
+        <p class="font-bold text-sky-300">Dica para Administradores de pfSense (Opcional):</p>
+        <p>• Se quiser permitir P2P direto mais rápido no pfSense: vá em <strong>Firewall &gt; NAT &gt; Outbound</strong>, ative <em>Hybrid Outbound NAT</em> e crie uma regra para a LAN com <strong>Static Port</strong> marcado (UDP).</p>
+        <p>• Garanta também que o proxy/firewall libere saída <strong>TCP 443</strong> (WebSockets <code class="text-sky-300">wss://0.peerjs.com</code> e TURN TLS).</p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2 pt-1">
+        <button onclick="saveTurnSettings()" class="flex-1 py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5">
+          <i data-lucide="save" class="w-4 h-4"></i> Salvar e Aplicar
+        </button>
+        <button onclick="testTurnConnectivity()" class="py-2.5 px-4 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/40 text-sky-300 text-xs font-bold transition flex items-center justify-center gap-1.5">
+          <i data-lucide="activity" class="w-4 h-4"></i> Testar Firewall/TURN
+        </button>
+        <button onclick="toggleModal('modalTurnConfig', false)" class="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== SCRIPT PRINCIPAL ==================== -->
   <script>
     // -------------------------------------------------------------
-    // 1. ESTADO GLOBAL E CONFIGURAÇÃO
+    // 1. ESTADO GLOBAL E CONFIGURAÇÃO (STUN + TURN 443 PARA PFSENSE)
     // -------------------------------------------------------------
-    const rtcIceConfig = {
-      iceServers: [
+    const TURN_STORAGE_KEY = 'ottimize_turn_config_v1';
+
+    let turnSettings = {
+      forceRelay: false,
+      customUrl: '',
+      customUser: '',
+      customPass: ''
+    };
+
+    function loadTurnSettings() {
+      try {
+        const raw = localStorage.getItem(TURN_STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          turnSettings = {
+            forceRelay: !!parsed.forceRelay,
+            customUrl: (parsed.customUrl || '').trim(),
+            customUser: (parsed.customUser || '').trim(),
+            customPass: (parsed.customPass || '').trim()
+          };
+        }
+      } catch (e) {}
+      updateTurnBadgeUI();
+    }
+
+    function updateTurnBadgeUI() {
+      const badge = document.getElementById('turnRelayBadge');
+      if (!badge) return;
+      if (turnSettings.forceRelay || turnSettings.customUrl) {
+        badge.classList.remove('hidden');
+        badge.innerText = turnSettings.forceRelay ? 'RELAY' : 'TURN';
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    function getRtcIceConfig() {
+      const servers = [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' }
-      ]
+        { urls: 'stun:stun.relay.metered.ca:80' },
+        // Servidores TURN públicos (TCP/TLS 443 e 80) para atravessar pfSense / NAT Simétrico
+        {
+          urls: [
+            'turn:standard.relay.metered.ca:80',
+            'turn:standard.relay.metered.ca:80?transport=tcp',
+            'turn:standard.relay.metered.ca:443',
+            'turns:standard.relay.metered.ca:443?transport=tcp'
+          ],
+          username: 'e8dd65b92f6dde6443d33b8a',
+          credential: '3B3C7s6X+h3t32B+'
+        },
+        {
+          urls: [
+            'turn:openrelay.metered.ca:80',
+            'turn:openrelay.metered.ca:443',
+            'turn:openrelay.metered.ca:443?transport=tcp'
+          ],
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        }
+      ];
+
+      // Se o técnico configurou um TURN próprio (Coturn / Metered / Twilio), coloca em prioridade
+      if (turnSettings.customUrl) {
+        const customEntry = { urls: turnSettings.customUrl };
+        if (turnSettings.customUser) customEntry.username = turnSettings.customUser;
+        if (turnSettings.customPass) customEntry.credential = turnSettings.customPass;
+        servers.unshift(customEntry);
+      }
+
+      return {
+        iceServers: servers,
+        iceTransportPolicy: turnSettings.forceRelay ? 'relay' : 'all',
+        iceCandidatePoolSize: 4
+      };
+    }
+
+    window.openTurnModal = function() {
+      document.getElementById('chkForceTurnRelay').checked = !!turnSettings.forceRelay;
+      document.getElementById('inputTurnUrl').value = turnSettings.customUrl || '';
+      document.getElementById('inputTurnUser').value = turnSettings.customUser || '';
+      document.getElementById('inputTurnPass').value = turnSettings.customPass || '';
+      toggleModal('modalTurnConfig', true);
+    };
+
+    window.saveTurnSettings = function() {
+      turnSettings = {
+        forceRelay: document.getElementById('chkForceTurnRelay').checked,
+        customUrl: document.getElementById('inputTurnUrl').value.trim(),
+        customUser: document.getElementById('inputTurnUser').value.trim(),
+        customPass: document.getElementById('inputTurnPass').value.trim()
+      };
+      try {
+        localStorage.setItem(TURN_STORAGE_KEY, JSON.stringify(turnSettings));
+      } catch (e) {}
+      updateTurnBadgeUI();
+      if (signalingMode === 'cloud' && !isRestrictedPreview()) {
+        initPeerCloud();
+      }
+      toggleModal('modalTurnConfig', false);
+      showToast(
+        turnSettings.forceRelay
+          ? "Modo Firewall/pfSense (Relay 443) ativado e salvo!"
+          : "Configuração TURN salva e aplicada!",
+        "success"
+      );
+    };
+
+    window.testTurnConnectivity = async function() {
+      const box = document.getElementById('turnDiagBox');
+      box.classList.remove('hidden');
+      box.innerHTML = '<p class="text-amber-300">Testando passagem pelo firewall (STUN + TURN 443)...</p>';
+
+      const tempSettings = {
+        forceRelay: document.getElementById('chkForceTurnRelay').checked,
+        customUrl: document.getElementById('inputTurnUrl').value.trim(),
+        customUser: document.getElementById('inputTurnUser').value.trim(),
+        customPass: document.getElementById('inputTurnPass').value.trim()
+      };
+      const prevSettings = turnSettings;
+      turnSettings = tempSettings;
+      const cfg = getRtcIceConfig();
+      turnSettings = prevSettings;
+
+      const found = { host: 0, srflx: 0, relay: 0 };
+      let pc = null;
+      try {
+        pc = new RTCPeerConnection(cfg);
+        pc.createDataChannel('diag');
+        pc.onicecandidate = (e) => {
+          if (e.candidate && e.candidate.candidate) {
+            const c = e.candidate.candidate;
+            if (c.includes(' typ host')) found.host++;
+            if (c.includes(' typ srflx')) found.srflx++;
+            if (c.includes(' typ relay')) found.relay++;
+          }
+        };
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        await new Promise((resolve) => setTimeout(resolve, 3500));
+        pc.close();
+
+        const relayOk = found.relay > 0;
+        const stunOk = found.srflx > 0;
+        box.innerHTML = `
+          <p class="font-bold ${relayOk ? 'text-emerald-400' : 'text-rose-400'}">
+            ${relayOk ? '✓ TURN Relay 443 LIBERADO (Atravessa pfSense!)' : '✗ Nenhum candidato TURN Relay obtido'}
+          </p>
+          <p class="text-slate-400">Candidatos coletados → Local (host): <strong class="text-white">${found.host}</strong> | Público (STUN): <strong class="text-white">${found.srflx}</strong> | Relay (TURN): <strong class="${relayOk ? 'text-emerald-400' : 'text-rose-400'}">${found.relay}</strong></p>
+          ${!relayOk ? '<p class="text-amber-300 mt-1">O firewall pode estar bloqueando TURN público ou exigindo um servidor TURN próprio (porta TCP 443). Cadastre um servidor TURN gratuito (ex: metered.ca) acima.</p>' : ''}
+          ${relayOk && !stunOk ? '<p class="text-sky-300 mt-1">UDP/STUN bloqueado pelo firewall, mas TURN 443 passou! Marque "Forçar Modo Relay" acima.</p>' : ''}
+        `;
+      } catch (err) {
+        if (pc) try { pc.close(); } catch (e) {}
+        box.innerHTML = `<p class="text-rose-400">Erro no diagnóstico: ${err.message}</p>`;
+      }
     };
 
     let signalingMode = 'cloud'; // 'cloud' | 'local' | 'manual'
@@ -665,6 +892,7 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
+      loadTurnSettings();
       regenerateClientCode();
       setupTechInteractionHandlers();
       startLocalBridgeMonitor();
@@ -1044,7 +1272,7 @@ try {
 
         if (peer && !peer.destroyed) peer.destroy();
 
-        peer = new Peer({ config: rtcIceConfig, debug: 0 });
+        peer = new Peer({ config: getRtcIceConfig(), debug: 0 });
 
         peer.on('open', () => {
           dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
@@ -1146,7 +1374,7 @@ try {
 
         if (signalingMode === 'cloud' && !isRestrictedPreview()) {
           if (peer && !peer.destroyed) peer.destroy();
-          peer = new Peer(hostPeerId, { config: rtcIceConfig, debug: 0 });
+          peer = new Peer(hostPeerId, { config: getRtcIceConfig(), debug: 0 });
 
           peer.on('open', () => {
             showToast(`Sala ${generatedClientCode} pronta na Nuvem! Aguardando técnico...`, "success");
@@ -1217,7 +1445,7 @@ try {
       if (signalingMode === 'cloud' && !isRestrictedPreview()) {
         const hostPeerId = `acessoweb-remoto-${currentRoomCode}`;
         if (!peer || peer.destroyed) {
-          peer = new Peer({ config: rtcIceConfig, debug: 0 });
+          peer = new Peer({ config: getRtcIceConfig(), debug: 0 });
         }
 
         // Técnico aguarda a chamada de vídeo enviada pelo cliente assim que o DataChannel abrir
@@ -1320,7 +1548,38 @@ try {
     // -------------------------------------------------------------
     // 8. CANAL DE DADOS & MÍDIA (PEERJS E NATIVO)
     // -------------------------------------------------------------
+    function monitorPeerConnectionIce(pc, labelPrefix) {
+      if (!pc) return;
+      pc.addEventListener('iceconnectionstatechange', () => {
+        const state = pc.iceConnectionState;
+        if (state === 'checking') {
+          updateConnStatusUI("Negociando Firewall/NAT...", "amber");
+        } else if (state === 'connected' || state === 'completed') {
+          // Verifica se fechou direto (P2P) ou via servidor TURN (Relay)
+          if (pc.getStats) {
+            pc.getStats().then((stats) => {
+              let viaRelay = false;
+              stats.forEach((report) => {
+                if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.nominated) {
+                  const localCand = stats.get(report.localCandidateId);
+                  const remoteCand = stats.get(report.remoteCandidateId);
+                  if ((localCand && localCand.candidateType === 'relay') || (remoteCand && remoteCand.candidateType === 'relay')) {
+                    viaRelay = true;
+                  }
+                }
+              });
+              updateConnStatusUI(viaRelay ? `${labelPrefix} (TURN 443)` : `${labelPrefix} (P2P Direto)`, "emerald");
+            }).catch(() => {});
+          }
+        } else if (state === 'failed') {
+          updateConnStatusUI("Bloqueado por Firewall/NAT", "rose");
+          showToast("Conexão bloqueada pelo firewall (ex: pfSense). Clique em 'Firewall / TURN' no topo e ative 'Forçar Modo Relay'.", "error");
+        }
+      });
+    }
+
     function setupPeerDataConnection(conn) {
+      if (conn.peerConnection) monitorPeerConnectionIce(conn.peerConnection, "Conectado");
       conn.on('open', () => {
         updateConnStatusUI("Conectado (Nuvem P2P)", "emerald");
         startPingLoop();
@@ -1336,6 +1595,7 @@ try {
     }
 
     function setupPeerMediaCall(call) {
+      if (call.peerConnection) monitorPeerConnectionIce(call.peerConnection, "Ao Vivo");
       call.on('stream', (remoteStream) => {
         attachRemoteStream(remoteStream, "Ao Vivo (Nuvem P2P)");
       });
@@ -1730,7 +1990,7 @@ try {
       try {
         localMediaStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
         currentRole = 'host';
-        nativePeerConn = new RTCPeerConnection(rtcIceConfig);
+        nativePeerConn = new RTCPeerConnection(getRtcIceConfig());
         localMediaStream.getTracks().forEach(t => nativePeerConn.addTrack(t, localMediaStream));
         setupNativeDataChannel(nativePeerConn.createDataChannel('manual'));
         const offer = await nativePeerConn.createOffer();
@@ -1751,7 +2011,7 @@ try {
         const raw = document.getElementById('manualRemoteSDP').value.trim();
         if (!raw) return showToast("Cole a oferta do cliente primeiro.", "error");
         currentRole = 'tech';
-        nativePeerConn = new RTCPeerConnection(rtcIceConfig);
+        nativePeerConn = new RTCPeerConnection(getRtcIceConfig());
         nativePeerConn.ondatachannel = (e) => setupNativeDataChannel(e.channel);
         nativePeerConn.ontrack = (e) => {
           toggleModal('modalManualSDP', false);
