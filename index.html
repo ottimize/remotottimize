@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Acesso Remoto - Ottimize Tecnologia</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js" onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';document.head.appendChild(s);"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -892,6 +892,9 @@
     let generatedClientCode = '';
 
     let peer = null;
+    let peerReconnectTimer = null;
+    let peerOpenTimeout = null;
+    let peerRetryCount = 0;
     let activeDataConn = null;
     let activeMediaCall = null;
     let localMediaStream = null;
@@ -924,11 +927,10 @@
     // -------------------------------------------------------------
     function isRestrictedPreview() {
       try {
-        const isEmbedded = window.self !== window.top;
         const isSrcdocOrBlob = window.location.protocol === 'about:' ||
                                window.location.protocol === 'blob:' ||
                                window.location.href.startsWith('about:srcdoc');
-        return isEmbedded || isSrcdocOrBlob;
+        return isSrcdocOrBlob;
       } catch (e) {
         return true;
       }
@@ -945,7 +947,17 @@
         switchToSignalingMode('local', true);
         document.getElementById('signalingStatusText').innerText = "Modo Local (Sandbox)";
       } else {
+        signalingMode = 'cloud';
         initPeerCloud();
+      }
+    });
+
+    window.addEventListener('online', () => {
+      if (signalingMode === 'cloud' && !isRestrictedPreview()) {
+        if (!peer || peer.destroyed) initPeerCloud();
+        else if (peer.disconnected) {
+          try { peer.reconnect(); } catch (e) { initPeerCloud(); }
+        }
       }
     });
 
@@ -1322,56 +1334,128 @@ try {
     // -------------------------------------------------------------
     // 4. SINALIZAÇÃO: PEERJS NUVEM + BROADCASTCHANNEL LOCAL
     // -------------------------------------------------------------
+    function clearPeerTimers() {
+      if (peerReconnectTimer) { clearTimeout(peerReconnectTimer); peerReconnectTimer = null; }
+      if (peerOpenTimeout) { clearTimeout(peerOpenTimeout); peerOpenTimeout = null; }
+    }
+
+    function schedulePeerReconnect(delayMs) {
+      if (signalingMode !== 'cloud' || isRestrictedPreview()) return;
+      if (peerReconnectTimer) return;
+      const wait = typeof delayMs === 'number' ? delayMs : Math.min(10000, 2000 + peerRetryCount * 1500);
+      peerRetryCount++;
+      peerReconnectTimer = setTimeout(() => {
+        peerReconnectTimer = null;
+        if (signalingMode !== 'cloud' || isRestrictedPreview()) return;
+        if (peer && !peer.destroyed && peer.open && !peer.disconnected) return;
+        if (peer && !peer.destroyed && peer.disconnected) {
+          try {
+            peer.reconnect();
+            return;
+          } catch (e) {}
+        }
+        initPeerCloud();
+      }, wait);
+    }
+
+    function setCloudStatusUI(state, customText) {
+      const dot = document.getElementById('signalingStatusDot');
+      const txt = document.getElementById('signalingStatusText');
+      if (!dot || !txt) return;
+      if (state === 'online') {
+        dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
+        txt.innerText = customText || "Nuvem WebRTC: Online";
+      } else if (state === 'connecting') {
+        dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
+        txt.innerText = customText || "Conectando Nuvem...";
+      } else {
+        dot.className = "w-2.5 h-2.5 rounded-full bg-rose-400";
+        txt.innerText = customText || "Reconectando Nuvem...";
+      }
+    }
+
     function initPeerCloud() {
       if (isRestrictedPreview()) {
         switchToSignalingMode('local', true);
         return false;
       }
+      clearPeerTimers();
+
+      // Caso o script CDN do PeerJS ainda esteja terminando de carregar
+      if (typeof Peer === 'undefined') {
+        setCloudStatusUI('connecting', 'Carregando Nuvem...');
+        schedulePeerReconnect(1500);
+        return false;
+      }
+
       try {
-        const dot = document.getElementById('signalingStatusDot');
-        const txt = document.getElementById('signalingStatusText');
-        dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
-        txt.innerText = "Conectando Nuvem...";
+        setCloudStatusUI('connecting', 'Conectando Nuvem...');
 
-        if (peer && !peer.destroyed) peer.destroy();
+        if (peer && !peer.destroyed) {
+          try { peer.destroy(); } catch (e) {}
+        }
 
-        peer = new Peer({ config: getRtcIceConfig(), debug: 0 });
+        const currentPeer = new Peer({ config: getRtcIceConfig(), debug: 0 });
+        peer = currentPeer;
 
-        peer.on('open', () => {
-          dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
-          txt.innerText = "Nuvem WebRTC: Online";
+        // Se o servidor PeerJS não responder em 8s, reinicia a tentativa automaticamente
+        peerOpenTimeout = setTimeout(() => {
+          if (peer === currentPeer && !currentPeer.open && signalingMode === 'cloud') {
+            setCloudStatusUI('connecting', 'Reconectando Nuvem...');
+            schedulePeerReconnect(1000);
+          }
+        }, 8000);
+
+        currentPeer.on('open', () => {
+          if (peer !== currentPeer) return;
+          clearPeerTimers();
+          peerRetryCount = 0;
+          setCloudStatusUI('online', 'Nuvem WebRTC: Online');
         });
 
-        peer.on('connection', (conn) => {
+        currentPeer.on('connection', (conn) => {
           activeDataConn = conn;
           setupPeerDataConnection(conn);
         });
 
-        peer.on('call', (call) => {
+        currentPeer.on('call', (call) => {
           activeMediaCall = call;
           if (localMediaStream) call.answer(localMediaStream);
           else call.answer();
           setupPeerMediaCall(call);
         });
 
-        peer.on('disconnected', () => {
-          dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400";
-          txt.innerText = "Nuvem: Desconectada";
+        currentPeer.on('disconnected', () => {
+          if (peer !== currentPeer) return;
+          setCloudStatusUI('connecting', 'Reconectando Nuvem...');
+          schedulePeerReconnect(2000);
         });
 
-        peer.on('error', (err) => {
-          if (err.type === 'unavailable-id') {
+        currentPeer.on('close', () => {
+          if (peer !== currentPeer) return;
+          setCloudStatusUI('error', 'Reconectando Nuvem...');
+          schedulePeerReconnect(3000);
+        });
+
+        currentPeer.on('error', (err) => {
+          if (peer !== currentPeer) return;
+          if (err && err.type === 'unavailable-id') {
             regenerateClientCode();
-          } else if (err.type === 'peer-unavailable') {
+          } else if (err && err.type === 'peer-unavailable') {
             showToast("Cliente não encontrado. Verifique se ele clicou em Compartilhar Tela.", "error");
           } else {
-            dot.className = "w-2.5 h-2.5 rounded-full bg-rose-400";
-            txt.innerText = "Nuvem Indisponível";
+            setCloudStatusUI('connecting', 'Reconectando Nuvem...');
+            schedulePeerReconnect();
           }
         });
         return true;
       } catch (err) {
-        switchToSignalingMode('local', true);
+        if (err && (err.name === 'SecurityError' || String(err).includes('SecurityError'))) {
+          switchToSignalingMode('local', true);
+          return false;
+        }
+        setCloudStatusUI('connecting', 'Reconectando Nuvem...');
+        schedulePeerReconnect(2500);
         return false;
       }
     }
@@ -1381,8 +1465,15 @@ try {
         showToast("No Preview Sandbox, WebSockets externos são bloqueados. Baixe/hospede o HTML para usar a Nuvem, ou teste a Demo Integrada.", "info");
         return;
       }
-      if (peer && !peer.destroyed) peer.reconnect();
-      else initPeerCloud();
+      signalingMode = 'cloud';
+      peerRetryCount = 0;
+      clearPeerTimers();
+      if (peer && !peer.destroyed && peer.disconnected) {
+        setCloudStatusUI('connecting', 'Reconectando Nuvem...');
+        try { peer.reconnect(); } catch (e) { initPeerCloud(); }
+      } else {
+        initPeerCloud();
+      }
       showToast("Reconectando à Nuvem WebRTC...", "info");
     };
 
@@ -1401,6 +1492,7 @@ try {
       const hostLabel = document.getElementById('hostModeLabel');
 
       if (mode === 'local') {
+        clearPeerTimers();
         dot.className = "w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse";
         txt.innerText = "Modo Local (2 Abas)";
         techLabel.innerText = "Sinalização: Local (BroadcastChannel)";
@@ -1408,11 +1500,17 @@ try {
         if (!silent) showToast("Modo Local ativado! Abra este arquivo em 2 abas para conectar.", "info");
         setupBroadcastChannel();
       } else {
-        dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
-        txt.innerText = "Nuvem WebRTC: Online";
         techLabel.innerText = "Sinalização: PeerJS Nuvem";
         hostLabel.innerText = "Sinalização: PeerJS Nuvem";
-        if (!peer || peer.destroyed) initPeerCloud();
+        peerRetryCount = 0;
+        if (peer && !peer.destroyed && peer.open && !peer.disconnected) {
+          setCloudStatusUI('online', 'Nuvem WebRTC: Online');
+        } else if (peer && !peer.destroyed && peer.disconnected) {
+          setCloudStatusUI('connecting', 'Reconectando Nuvem...');
+          try { peer.reconnect(); } catch (e) { initPeerCloud(); }
+        } else {
+          initPeerCloud();
+        }
       }
     };
 
@@ -1436,15 +1534,30 @@ try {
         const hostPeerId = `acessoweb-remoto-${currentRoomCode}`;
 
         if (signalingMode === 'cloud' && !isRestrictedPreview()) {
+          clearPeerTimers();
+          setCloudStatusUI('connecting', 'Registrando Sala...');
           if (peer && !peer.destroyed) peer.destroy();
-          peer = new Peer(hostPeerId, { config: getRtcIceConfig(), debug: 0 });
+          const hostPeer = new Peer(hostPeerId, { config: getRtcIceConfig(), debug: 0 });
+          peer = hostPeer;
 
-          peer.on('open', () => {
+          hostPeer.on('open', () => {
+            if (peer !== hostPeer) return;
+            setCloudStatusUI('online', 'Nuvem WebRTC: Online');
             addConnLog(`Sala ${generatedClientCode} registrada na Nuvem (Relay: ${turnSettings.forceRelay ? 'SIM' : 'AUTO'}).`, 'ok');
             showToast(`Sala ${generatedClientCode} pronta na Nuvem! Aguardando técnico...`, "success");
           });
 
-          peer.on('connection', (conn) => {
+          hostPeer.on('disconnected', () => {
+            if (peer !== hostPeer) return;
+            setCloudStatusUI('connecting', 'Reconectando Sala...');
+            setTimeout(() => {
+              if (peer === hostPeer && !hostPeer.destroyed && hostPeer.disconnected) {
+                try { hostPeer.reconnect(); } catch (e) {}
+              }
+            }, 2000);
+          });
+
+          hostPeer.on('connection', (conn) => {
             activeDataConn = conn;
             addConnLog(`Técnico solicitou acesso (${conn.peer.slice(0, 8)}...). Negociando ICE...`, 'info');
             setupPeerDataConnection(conn);
@@ -1471,19 +1584,20 @@ try {
             }, 3000);
           });
 
-          peer.on('call', (call) => {
+          hostPeer.on('call', (call) => {
             activeMediaCall = call;
             call.answer(localMediaStream);
             setupPeerMediaCall(call);
           });
 
-          peer.on('error', (err) => {
+          hostPeer.on('error', (err) => {
             addConnLog(`Erro PeerJS: ${err.type || err.message}`, 'err');
             if (err.type === 'unavailable-id') {
               regenerateClientCode();
               startHostSharing(isSimulated);
             } else {
-              showToast("Erro na Nuvem WebRTC. Tente reconectar.", "error");
+              setCloudStatusUI('connecting', 'Reconectando Nuvem...');
+              showToast("Oscilação na Nuvem WebRTC. Tentando reconectar...", "info");
             }
           });
         } else {
@@ -2422,6 +2536,11 @@ try {
       document.getElementById('techClickCapture').classList.add('hidden');
       document.getElementById('hostPreviewOverlay').classList.add('hidden');
       document.getElementById('videoPlaceholder').classList.remove('hidden');
+
+      // Garante que a Nuvem volte a ficar pronta após encerrar uma sessão
+      if (signalingMode === 'cloud' && !isRestrictedPreview() && (!peer || peer.destroyed || peer.disconnected)) {
+        initPeerCloud();
+      }
 
       if (!silent) showToast("Sessão encerrada com sucesso.", "info");
     };
