@@ -965,34 +965,40 @@
       temp.select();
       try {
         document.execCommand('copy');
-        showToast(`Código ${text} copiado!`, 'success');
+        showToast("Código copiado: " + text, "success");
       } catch (e) {
-        showToast('Não foi possível copiar o código.', 'error');
+        showToast("Copie manualmente: " + text, "info");
       }
       document.body.removeChild(temp);
     }
 
     // -------------------------------------------------------------
-    // 3. ATIVADOR RÁPIDO WINDOWS (.BAT SEM PYTHON / SEM INSTALAÇÃO)
+    // 3. ATIVADOR RÁPIDO WINDOWS (.BAT SEM INSTALAR NADA)
     // -------------------------------------------------------------
     window.downloadWindowsBridge = function() {
       const batTemplate = `@echo off
-title Ottimize Tecnologia - Controle Remoto Ativo
-color 0B
-set "BAT_PATH=%~f0"
-echo =========================================================
-echo   Ottimize Tecnologia - Controle Remoto (Sem Instalacao)
-echo =========================================================
+title Acesso Remoto - Ottimize Tecnologia (Ativador de Controle)
+color 0A
+echo ============================================================
+echo   Acesso Remoto - Ottimize Tecnologia
+echo   Ativando controle de mouse e teclado (Windows / Server)...
+echo ============================================================
 echo.
-echo Iniciando ponte local segura em http://127.0.0.1:8765 ...
+set "PSFILE=%TEMP%\\otm_ctrl_%RANDOM%.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$raw=[System.IO.File]::ReadAllText('%~f0',[System.Text.Encoding]::UTF8); $marker='#PS_'+'START#'; $idx=$raw.LastIndexOf($marker); if($idx -lt 0){exit 1}; $code=$raw.Substring($idx+$marker.Length); [System.IO.File]::WriteAllText('%PSFILE%',$code,[System.Text.Encoding]::UTF8)"
+if not exist "%PSFILE%" (
+  echo [ERRO] Nao foi possivel preparar o ativador temporario.
+  pause
+  exit /b 1
+)
+powershell -NoProfile -ExecutionPolicy Bypass -STA -File "%PSFILE%"
+del /f /q "%PSFILE%" >nul 2>&1
 echo.
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$c=[IO.File]::ReadAllText($env:BAT_PATH,[Text.Encoding]::UTF8);$m='#PS_'+'START#';$i=$c.LastIndexOf($m);if($i -ge 0){$f=Join-Path $env:TEMP ('otm_ctrl_'+$PID+'.ps1');[IO.File]::WriteAllText($f,$c.Substring($i),[Text.Encoding]::UTF8);try{& $f}finally{Remove-Item $f -Force -ErrorAction SilentlyContinue}}"
-echo.
+echo Controle encerrado.
 pause
 exit /b
 #PS_START#
-$ErrorActionPreference = "Stop"
-
+$ErrorActionPreference = 'Stop'
 try {
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type @"
@@ -1000,42 +1006,56 @@ using System;
 using System.Runtime.InteropServices;
 public class RemoteInput {
     [DllImport("user32.dll")]
-    public static extern bool SetProcessDPIAware();
-    [DllImport("user32.dll")]
-    public static extern int GetSystemMetrics(int nIndex);
-    [DllImport("user32.dll")]
-    public static extern bool SetCursorPos(int X, int Y);
-    [DllImport("user32.dll")]
-    public static extern void mouse_event(uint dwFlags, uint dx, uint dy, int dwData, UIntPtr dwExtraInfo);
+    public static extern void mouse_event(uint dwFlags, int dx, int dy, int dwData, UIntPtr dwExtraInfo);
 
-    public const uint LEFTDOWN = 0x0002;
-    public const uint LEFTUP = 0x0004;
-    public const uint RIGHTDOWN = 0x0008;
-    public const uint RIGHTUP = 0x0010;
-    public const uint WHEEL = 0x0800;
+    public const uint MOVE       = 0x0001;
+    public const uint LEFTDOWN   = 0x0002;
+    public const uint LEFTUP     = 0x0004;
+    public const uint RIGHTDOWN  = 0x0008;
+    public const uint RIGHTUP    = 0x0010;
+    public const uint MIDDLEDOWN = 0x0020;
+    public const uint MIDDLEUP   = 0x0040;
+    public const uint WHEEL      = 0x0800;
+    public const uint ABSOLUTE   = 0x8000;
 
-    public static void Move(int x, int y) { SetCursorPos(x, y); }
-    public static void LeftClick(int x, int y) {
-        SetCursorPos(x, y);
-        mouse_event(LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
-        mouse_event(LEFTUP, 0, 0, 0, UIntPtr.Zero);
+    private static int ToAbs(double norm) {
+        double c = Math.Max(0.0, Math.Min(1.0, norm));
+        return (int)Math.Round(c * 65535.0);
     }
-    public static void DoubleClick(int x, int y) {
-        LeftClick(x, y);
+
+    public static void Move(double nx, double ny) {
+        mouse_event(MOVE | ABSOLUTE, ToAbs(nx), ToAbs(ny), 0, UIntPtr.Zero);
+    }
+    public static void MouseDown(double nx, double ny, int btn) {
+        int ax = ToAbs(nx), ay = ToAbs(ny);
+        uint down = (btn == 2) ? RIGHTDOWN : (btn == 1 ? MIDDLEDOWN : LEFTDOWN);
+        mouse_event(MOVE | ABSOLUTE | down, ax, ay, 0, UIntPtr.Zero);
+    }
+    public static void MouseUp(double nx, double ny, int btn) {
+        int ax = ToAbs(nx), ay = ToAbs(ny);
+        uint up = (btn == 2) ? RIGHTUP : (btn == 1 ? MIDDLEUP : LEFTUP);
+        mouse_event(MOVE | ABSOLUTE | up, ax, ay, 0, UIntPtr.Zero);
+    }
+    public static void LeftClick(double nx, double ny) {
+        int ax = ToAbs(nx), ay = ToAbs(ny);
+        mouse_event(MOVE | ABSOLUTE | LEFTDOWN, ax, ay, 0, UIntPtr.Zero);
+        mouse_event(MOVE | ABSOLUTE | LEFTUP, ax, ay, 0, UIntPtr.Zero);
+    }
+    public static void DoubleClick(double nx, double ny) {
+        LeftClick(nx, ny);
         System.Threading.Thread.Sleep(50);
-        LeftClick(x, y);
+        LeftClick(nx, ny);
     }
-    public static void RightClick(int x, int y) {
-        SetCursorPos(x, y);
-        mouse_event(RIGHTDOWN, 0, 0, 0, UIntPtr.Zero);
-        mouse_event(RIGHTUP, 0, 0, 0, UIntPtr.Zero);
+    public static void RightClick(double nx, double ny) {
+        int ax = ToAbs(nx), ay = ToAbs(ny);
+        mouse_event(MOVE | ABSOLUTE | RIGHTDOWN, ax, ay, 0, UIntPtr.Zero);
+        mouse_event(MOVE | ABSOLUTE | RIGHTUP, ax, ay, 0, UIntPtr.Zero);
     }
     public static void Scroll(int delta) {
         mouse_event(WHEEL, 0, 0, delta, UIntPtr.Zero);
     }
 }
 "@
-    try { [RemoteInput]::SetProcessDPIAware() | Out-Null } catch {}
 } catch {
     Write-Host "[ERRO] Falha ao carregar controles graficos do Windows: $_" -ForegroundColor Red
     exit 1
@@ -1140,26 +1160,25 @@ try {
 
                 try {
                     $data = $body | ConvertFrom-Json
-                    $w = [RemoteInput]::GetSystemMetrics(0)
-                    $h = [RemoteInput]::GetSystemMetrics(1)
-                    if ($w -le 0 -or $h -le 0) {
-                        $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-                        $w = $bounds.Width
-                        $h = $bounds.Height
-                    }
-                    $px = [int][Math]::Round([Math]::Max(0, [Math]::Min(1, [double]$data.x)) * ($w - 1))
-                    $py = [int][Math]::Round([Math]::Max(0, [Math]::Min(1, [double]$data.y)) * ($h - 1))
+                    $nx = if ($null -ne $data.x) { [double]$data.x } else { 0.0 }
+                    $ny = if ($null -ne $data.y) { [double]$data.y } else { 0.0 }
 
                     if ($data.action -eq "move") {
-                        [RemoteInput]::Move($px, $py)
+                        [RemoteInput]::Move($nx, $ny)
+                    } elseif ($data.action -eq "mousedown") {
+                        $btn = if ($null -ne $data.button) { [int]$data.button } else { 0 }
+                        [RemoteInput]::MouseDown($nx, $ny, $btn)
+                    } elseif ($data.action -eq "mouseup") {
+                        $btn = if ($null -ne $data.button) { [int]$data.button } else { 0 }
+                        [RemoteInput]::MouseUp($nx, $ny, $btn)
                     } elseif ($data.action -eq "click") {
                         if ($data.button -eq 2) {
-                            [RemoteInput]::RightClick($px, $py)
+                            [RemoteInput]::RightClick($nx, $ny)
                         } else {
-                            [RemoteInput]::LeftClick($px, $py)
+                            [RemoteInput]::LeftClick($nx, $ny)
                         }
                     } elseif ($data.action -eq "dblclick") {
-                        [RemoteInput]::DoubleClick($px, $py)
+                        [RemoteInput]::DoubleClick($nx, $ny)
                     } elseif ($data.action -eq "scroll") {
                         [RemoteInput]::Scroll([int](-$data.deltaY))
                     } elseif ($data.action -eq "key") {
@@ -1407,7 +1426,7 @@ try {
           showToast("Tela Simulada (30 FPS) iniciada.", "info");
         } else {
           localMediaStream = await navigator.mediaDevices.getDisplayMedia({
-            video: { cursor: "always", frameRate: 30 },
+            video: { displaySurface: "monitor", cursor: "always", frameRate: 30 },
             audio: false
           });
         }
@@ -1835,16 +1854,19 @@ try {
       videoEl.play().catch(() => {});
       document.getElementById('videoPlaceholder').classList.add('hidden');
       updateConnStatusUI(statusLabel, "emerald");
-      videoEl.onloadedmetadata = () => {
-        document.getElementById('resVal').innerText = `${videoEl.videoWidth}x${videoEl.videoHeight}`;
-        syncVideoOverlayBounds();
-      };
-      videoEl.onresize = () => {
+
+      const updateMetaAndBounds = () => {
         if (videoEl.videoWidth && videoEl.videoHeight) {
           document.getElementById('resVal').innerText = `${videoEl.videoWidth}x${videoEl.videoHeight}`;
         }
         syncVideoOverlayBounds();
       };
+
+      videoEl.onloadedmetadata = updateMetaAndBounds;
+      videoEl.onloadeddata = updateMetaAndBounds;
+      videoEl.onplaying = updateMetaAndBounds;
+      videoEl.onresize = updateMetaAndBounds;
+      if (videoEl.readyState >= 1) updateMetaAndBounds();
     }
 
     // -------------------------------------------------------------
@@ -1898,10 +1920,10 @@ try {
       if (!stage || !contentRect) return;
 
       const stageRect = stage.getBoundingClientRect();
-      const relLeft = Math.max(0, contentRect.left - stageRect.left);
-      const relTop = Math.max(0, contentRect.top - stageRect.top);
-      const relWidth = Math.min(stageRect.width, contentRect.width);
-      const relHeight = Math.min(stageRect.height, contentRect.height);
+      const relLeft = Math.max(0, contentRect.left - stageRect.left - stage.clientLeft);
+      const relTop = Math.max(0, contentRect.top - stageRect.top - stage.clientTop);
+      const relWidth = Math.min(stage.clientWidth, contentRect.width);
+      const relHeight = Math.min(stage.clientHeight, contentRect.height);
 
       ['techClickCapture', 'drawCanvas', 'pingLayer'].forEach((id) => {
         const el = document.getElementById(id);
@@ -1927,17 +1949,17 @@ try {
     function setupTechInteractionHandlers() {
       const layer = document.getElementById('techClickCapture');
       const stage = document.getElementById('videoStageContainer');
+      const videoEl = document.getElementById('remoteVideo');
 
-      if (window.ResizeObserver && stage) {
+      if (window.ResizeObserver) {
         const ro = new ResizeObserver(() => syncVideoOverlayBounds());
-        ro.observe(stage);
+        if (stage) ro.observe(stage);
+        if (videoEl) ro.observe(videoEl);
       }
 
       layer.addEventListener('contextmenu', (e) => {
         if (activeTechTool === 'control') {
           e.preventDefault();
-          const pt = getRelativeCoords(e, layer);
-          sendDataMessage({ type: 'remote_input', cmd: { action: 'click', button: 2, x: pt.x, y: pt.y } });
         }
       });
 
@@ -1951,16 +1973,18 @@ try {
         } else if (activeTechTool === 'draw') {
           isDrawing = true;
           lastDrawPt = pt;
-        } else if (activeTechTool === 'control' && e.button === 0) {
+        } else if (activeTechTool === 'control') {
+          e.preventDefault();
           layer.focus();
-          sendDataMessage({ type: 'remote_input', cmd: { action: 'click', button: 0, x: pt.x, y: pt.y } });
+          sendDataMessage({ type: 'remote_input', cmd: { action: 'mousedown', button: e.button, x: pt.x, y: pt.y } });
         }
       });
 
-      layer.addEventListener('dblclick', (e) => {
+      layer.addEventListener('mouseup', (e) => {
         if (activeTechTool === 'control') {
+          e.preventDefault();
           const pt = getRelativeCoords(e, layer);
-          sendDataMessage({ type: 'remote_input', cmd: { action: 'dblclick', x: pt.x, y: pt.y } });
+          sendDataMessage({ type: 'remote_input', cmd: { action: 'mouseup', button: e.button, x: pt.x, y: pt.y } });
         }
       });
 
