@@ -730,6 +730,8 @@ public class RemoteInput {
     [DllImport("user32.dll")]
     public static extern bool SetProcessDPIAware();
     [DllImport("user32.dll")]
+    public static extern int GetSystemMetrics(int nIndex);
+    [DllImport("user32.dll")]
     public static extern bool SetCursorPos(int X, int Y);
     [DllImport("user32.dll")]
     public static extern void mouse_event(uint dwFlags, uint dx, uint dy, int dwData, UIntPtr dwExtraInfo);
@@ -866,20 +868,26 @@ try {
 
                 try {
                     $data = $body | ConvertFrom-Json
-                    $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-                    $w = $bounds.Width
-                    $h = $bounds.Height
+                    $w = [RemoteInput]::GetSystemMetrics(0)
+                    $h = [RemoteInput]::GetSystemMetrics(1)
+                    if ($w -le 0 -or $h -le 0) {
+                        $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+                        $w = $bounds.Width
+                        $h = $bounds.Height
+                    }
+                    $px = [int][Math]::Round([Math]::Max(0, [Math]::Min(1, [double]$data.x)) * ($w - 1))
+                    $py = [int][Math]::Round([Math]::Max(0, [Math]::Min(1, [double]$data.y)) * ($h - 1))
 
                     if ($data.action -eq "move") {
-                        [RemoteInput]::Move([int]($data.x * $w), [int]($data.y * $h))
+                        [RemoteInput]::Move($px, $py)
                     } elseif ($data.action -eq "click") {
                         if ($data.button -eq 2) {
-                            [RemoteInput]::RightClick([int]($data.x * $w), [int]($data.y * $h))
+                            [RemoteInput]::RightClick($px, $py)
                         } else {
-                            [RemoteInput]::LeftClick([int]($data.x * $w), [int]($data.y * $h))
+                            [RemoteInput]::LeftClick($px, $py)
                         }
                     } elseif ($data.action -eq "dblclick") {
-                        [RemoteInput]::DoubleClick([int]($data.x * $w), [int]($data.y * $h))
+                        [RemoteInput]::DoubleClick($px, $py)
                     } elseif ($data.action -eq "scroll") {
                         [RemoteInput]::Scroll([int](-$data.deltaY))
                     } elseif ($data.action -eq "key") {
@@ -1353,85 +1361,96 @@ try {
       updateConnStatusUI(statusLabel, "emerald");
       videoEl.onloadedmetadata = () => {
         document.getElementById('resVal').innerText = `${videoEl.videoWidth}x${videoEl.videoHeight}`;
-        resizeDrawCanvas();
+        syncVideoOverlayBounds();
+      };
+      videoEl.onresize = () => {
+        if (videoEl.videoWidth && videoEl.videoHeight) {
+          document.getElementById('resVal').innerText = `${videoEl.videoWidth}x${videoEl.videoHeight}`;
+        }
+        syncVideoOverlayBounds();
       };
     }
 
     function sendDataMessage(obj) {
-      if (activeDataConn && activeDataConn.open) {
-        activeDataConn.send(obj);
-      } else if (nativeDataChannel && nativeDataChannel.readyState === 'open') {
-        nativeDataChannel.send(JSON.stringify(obj));
+    function getVideoContentRect() {
+      const video = document.getElementById('remoteVideo');
+      const stage = document.getElementById('videoStageContainer');
+      if (!video || !stage) return null;
+
+      const vRect = video.getBoundingClientRect();
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+
+      if (!vw || !vh || !vRect.width || !vRect.height) {
+        return {
+          left: vRect.left,
+          top: vRect.top,
+          width: vRect.width || 1,
+          height: vRect.height || 1
+        };
       }
+
+      const videoRatio = vw / vh;
+      const elemRatio = vRect.width / vRect.height;
+      let renderW, renderH, offsetX, offsetY;
+
+      if (videoFitMode === 'cover') {
+        if (elemRatio > videoRatio) {
+          renderW = vRect.width;
+          renderH = vRect.width / videoRatio;
+          offsetX = vRect.left;
+          offsetY = vRect.top - (renderH - vRect.height) / 2;
+        } else {
+          renderH = vRect.height;
+          renderW = vRect.height * videoRatio;
+          offsetX = vRect.left - (renderW - vRect.width) / 2;
+          offsetY = vRect.top;
+        }
+      } else {
+        // Modo 'contain': desconta exatamente as faixas pretas (letterbox/pillarbox)
+        if (elemRatio > videoRatio) {
+          renderH = vRect.height;
+          renderW = vRect.height * videoRatio;
+          offsetX = vRect.left + (vRect.width - renderW) / 2;
+          offsetY = vRect.top;
+        } else {
+          renderW = vRect.width;
+          renderH = vRect.width / videoRatio;
+          offsetX = vRect.left;
+          offsetY = vRect.top + (vRect.height - renderH) / 2;
+        }
+      }
+
+      return { left: offsetX, top: offsetY, width: renderW, height: renderH };
     }
 
-    function handleIncomingDataMessage(msg) {
-      if (!msg || !msg.type) return;
+    function syncVideoOverlayBounds() {
+      const stage = document.getElementById('videoStageContainer');
+      const contentRect = getVideoContentRect();
+      if (!stage || !contentRect) return;
 
-      if (msg.type === 'ping') {
-        sendDataMessage({ type: 'pong', timestamp: msg.timestamp });
-      } else if (msg.type === 'pong') {
-        const latency = Math.max(1, Date.now() - msg.timestamp);
-        document.getElementById('pingVal').innerText = `${latency} ms`;
-      } else if (msg.type === 'chat') {
-        appendChatMessage(msg.sender, msg.text, msg.timestamp, false);
-      } else if (msg.type === 'pointer') {
-        renderVisualPing(msg.x, msg.y, msg.label);
-        playPingSound();
-      } else if (msg.type === 'draw') {
-        drawSegmentOnCanvas(msg.x1, msg.y1, msg.x2, msg.y2);
-      } else if (msg.type === 'clear_draw') {
-        clearRemoteDrawings(false);
-      } else if (msg.type === 'bridge_status') {
-        isRemoteBridgeOnline = !!msg.online;
-        updateBridgeUI();
-        if (currentRole === 'tech' && isRemoteBridgeOnline) {
-          showToast("Cliente ativou o Controle Real! Você já pode controlar mouse e teclado.", "success");
-        }
-      } else if (msg.type === 'remote_input' && currentRole === 'host') {
-        forwardCommandToLocalBridge(msg.cmd);
-      }
+      const stageRect = stage.getBoundingClientRect();
+      const relLeft = Math.max(0, contentRect.left - stageRect.left);
+      const relTop = Math.max(0, contentRect.top - stageRect.top);
+      const relWidth = Math.min(stageRect.width, contentRect.width);
+      const relHeight = Math.min(stageRect.height, contentRect.height);
+
+      ['techClickCapture', 'drawCanvas', 'pingLayer'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.style.left = `${relLeft}px`;
+        el.style.top = `${relTop}px`;
+        el.style.width = `${relWidth}px`;
+        el.style.height = `${relHeight}px`;
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
+      });
+
+      resizeDrawCanvas();
     }
-
-    // -------------------------------------------------------------
-    // 9. INTERAÇÃO DO TÉCNICO: CONTROLE REAL / PONTEIRO / DESENHO
-    // -------------------------------------------------------------
-    window.setTechTool = function(tool) {
-      activeTechTool = tool;
-      const btnControl = document.getElementById('btnToolControl');
-      const btnPointer = document.getElementById('btnToolPointer');
-      const btnDraw = document.getElementById('btnToolDraw');
-      const btnClear = document.getElementById('btnClearDraw');
-      const labelSel = document.getElementById('pointerLabelSelect');
-      const layer = document.getElementById('techClickCapture');
-
-      const baseOff = "px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-slate-800 text-slate-300 border border-slate-700";
-      btnControl.className = baseOff;
-      btnPointer.className = baseOff;
-      btnDraw.className = baseOff;
-      btnClear.classList.add('hidden');
-      labelSel.classList.add('hidden');
-
-      if (tool === 'control') {
-        btnControl.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-emerald-600 text-white border border-emerald-500";
-        layer.style.cursor = 'default';
-        layer.focus();
-        if (!isRemoteBridgeOnline && currentRoomCode !== 'DEMO-P2P') {
-          showToast("Peça ao cliente para abrir o 'AtivarControleRemoto.bat' para liberar mouse e teclado.", "info");
-        }
-      } else if (tool === 'pointer') {
-        btnPointer.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-sky-600 text-white border border-sky-500";
-        labelSel.classList.remove('hidden');
-        layer.style.cursor = 'crosshair';
-      } else if (tool === 'draw') {
-        btnDraw.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-amber-600 text-white border border-amber-500";
-        btnClear.classList.remove('hidden');
-        layer.style.cursor = 'cell';
-      }
-    };
 
     function getRelativeCoords(e, el) {
-      const rect = el.getBoundingClientRect();
+      const rect = getVideoContentRect() || el.getBoundingClientRect();
       const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
       return { x, y };
@@ -1439,6 +1458,12 @@ try {
 
     function setupTechInteractionHandlers() {
       const layer = document.getElementById('techClickCapture');
+      const stage = document.getElementById('videoStageContainer');
+
+      if (window.ResizeObserver && stage) {
+        const ro = new ResizeObserver(() => syncVideoOverlayBounds());
+        ro.observe(stage);
+      }
 
       layer.addEventListener('contextmenu', (e) => {
         if (activeTechTool === 'control') {
@@ -1479,7 +1504,7 @@ try {
           lastDrawPt = pt;
         } else if (activeTechTool === 'control') {
           const now = Date.now();
-          if (now - lastMoveSentAt > 45) {
+          if (now - lastMoveSentAt > 20) {
             lastMoveSentAt = now;
             sendDataMessage({ type: 'remote_input', cmd: { action: 'move', x: pt.x, y: pt.y } });
           }
@@ -1505,15 +1530,15 @@ try {
         }
       });
 
-      window.addEventListener('resize', resizeDrawCanvas);
+      window.addEventListener('resize', syncVideoOverlayBounds);
     }
 
     function resizeDrawCanvas() {
       const canvas = document.getElementById('drawCanvas');
       if (!canvas) return;
-      const rect = canvas.parentElement.getBoundingClientRect();
-      canvas.width = rect.width || 800;
-      canvas.height = rect.height || 500;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.round(rect.width) || 800;
+      canvas.height = Math.round(rect.height) || 500;
     }
 
     function drawSegmentOnCanvas(x1, y1, x2, y2) {
@@ -1789,6 +1814,7 @@ try {
         v.classList.add('object-contain');
         txt.innerText = 'Ajustar';
       }
+      setTimeout(syncVideoOverlayBounds, 50);
     };
 
     window.toggleFullscreen = function() {
@@ -1824,7 +1850,7 @@ try {
         btnText.innerText = isFull ? 'Sair Tela Cheia' : 'Tela Cheia';
       }
       setTimeout(() => {
-        resizeDrawCanvas();
+        syncVideoOverlayBounds();
         if (isFull && activeTechTool === 'control') {
           const layer = document.getElementById('techClickCapture');
           if (layer) layer.focus();
