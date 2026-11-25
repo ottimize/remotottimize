@@ -714,7 +714,7 @@ echo =========================================================
 echo.
 echo Iniciando ponte local segura em http://127.0.0.1:8765 ...
 echo.
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$c=[IO.File]::ReadAllText($env:BAT_PATH,[Text.Encoding]::UTF8);$i=$c.IndexOf('#PS_START#');if($i -ge 0){$f=Join-Path $env:TEMP ('otm_ctrl_'+$PID+'.ps1');[IO.File]::WriteAllText($f,$c.Substring($i),[Text.Encoding]::UTF8);try{& $f}finally{Remove-Item $f -Force -ErrorAction SilentlyContinue}}"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$c=[IO.File]::ReadAllText($env:BAT_PATH,[Text.Encoding]::UTF8);$m='#PS_'+'START#';$i=$c.LastIndexOf($m);if($i -ge 0){$f=Join-Path $env:TEMP ('otm_ctrl_'+$PID+'.ps1');[IO.File]::WriteAllText($f,$c.Substring($i),[Text.Encoding]::UTF8);try{& $f}finally{Remove-Item $f -Force -ErrorAction SilentlyContinue}}"
 echo.
 pause
 exit /b
