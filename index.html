@@ -154,6 +154,13 @@
           <span>Controle Real (1 Clique)</span>
         </button>
 
+        <!-- Botão Firewall / TURN (pfSense) -->
+        <button onclick="openTurnModal()" title="Configurar TURN para pfSense / Firewall restrito" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold transition">
+          <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Firewall / TURN</span>
+          <span id="turnRelayBadge" class="hidden px-1.5 py-0.5 rounded bg-amber-500/30 text-[10px] font-bold">443</span>
+        </button>
+
         <!-- Botão Modos -->
         <button onclick="toggleModal('modalModeSelect', true)" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition">
           <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-sky-400"></i>
@@ -416,42 +423,45 @@
           <!-- Camada de Pings Visuais -->
           <div id="pingLayer" class="absolute inset-0 pointer-events-none z-40 overflow-hidden"></div>
 
-          <!-- Placeholder de Aguardando Vídeo -->
-          <div id="videoPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 z-10 p-6 text-center">
-            <div class="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-4">
-              <i data-lucide="loader-2" class="w-7 h-7 text-sky-400 animate-spin"></i>
-            </div>
-            <h3 class="text-base font-bold text-white">Estabelecendo transmissão de tela...</h3>
-            <p class="text-xs text-slate-400 mt-1 max-w-sm">Aguardando a conexão WebRTC com a outra ponta. Verifique se o código foi digitado corretamente.</p>
-          </div>
-
-          <!-- Overlay quando está no Modo Cliente -->
-          <div id="hostPreviewOverlay" class="hidden absolute inset-0 bg-slate-950/92 z-20 flex flex-col items-center justify-center p-6 text-center">
+          <!-- Overlay do Cliente (Host) -->
+          <div id="hostPreviewOverlay" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 z-15 p-6 text-center">
             <div class="w-16 h-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center mb-4">
               <i data-lucide="radio" class="w-8 h-8 text-emerald-400 animate-pulse"></i>
             </div>
             <h3 class="text-lg font-bold text-white">Sua tela está sendo compartilhada</h3>
             <p class="text-xs text-slate-400 mt-1 max-w-md">
-              Mantenha esta aba aberta. Os alertas visuais do técnico aparecerão aqui e o chat lateral está ativo.
+              Mantenha esta aba aberta durante o atendimento. Você pode encerrar a transmissão a qualquer momento.
             </p>
-
-            <!-- Status do Ativador Rápido no Modo Cliente -->
-            <div id="hostBridgeCard" class="mt-5 p-4 rounded-xl bg-slate-900 border border-slate-800 max-w-md w-full text-left">
-              <div class="flex items-center justify-between gap-2 mb-2">
-                <span class="text-xs font-bold text-white flex items-center gap-1.5">
-                  <i data-lucide="mouse-pointer-click" class="w-4 h-4 text-emerald-400"></i>
-                  Controle de Mouse e Teclado
-                </span>
-                <span id="hostBridgeStatusPill" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                  Aguardando Ativador
-                </span>
+            <div class="mt-4 p-3.5 rounded-xl bg-slate-900 border border-slate-800 max-w-md w-full flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div class="text-left">
+                <span id="hostBridgeStatusPill" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">Aguardando Ativador</span>
+                <p id="hostBridgeDesc" class="text-[11px] text-slate-400 mt-1">Se o técnico precisar mexer no mouse/teclado, baixe e execute o Ativador Rápido.</p>
               </div>
-              <p id="hostBridgeDesc" class="text-[11px] text-slate-400 mb-3">
-                Quer deixar o técnico mexer no seu mouse? Clique abaixo para baixar o ativador rápido (sem instalar nada) e dê 2 cliques nele.
-              </p>
-              <button onclick="downloadWindowsBridge()" class="w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition flex items-center justify-center gap-1.5">
-                <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                Baixar Ativador Rápido (AtivarControleRemoto.bat)
+              <button onclick="downloadWindowsBridge()" class="shrink-0 px-3 py-2 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 text-xs font-semibold transition flex items-center gap-1.5">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i> Ativador (.bat)
+              </button>
+            </div>
+          </div>
+
+          <!-- Placeholder de Aguardando Vídeo -->
+          <div id="videoPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/95 z-10 p-6 text-center">
+            <div class="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-3">
+              <i data-lucide="loader-2" class="w-7 h-7 text-sky-400 animate-spin"></i>
+            </div>
+            <h3 class="text-base font-bold text-white">Estabelecendo transmissão de tela...</h3>
+            <p class="text-xs text-slate-400 mt-1 max-w-sm">Aguardando a negociação WebRTC (P2P / TURN 443) com a outra ponta.</p>
+
+            <!-- Log de Diagnóstico ao Vivo -->
+            <div id="liveConnLog" class="mt-4 w-full max-w-md max-h-36 overflow-y-auto text-left bg-slate-900/90 border border-slate-800 rounded-xl p-3 font-mono text-[11px] text-slate-300 space-y-1">
+              <p class="text-slate-500">Iniciando diagnóstico da sessão...</p>
+            </div>
+
+            <div class="mt-3 flex flex-wrap items-center justify-center gap-2">
+              <button onclick="requestVideoRetry()" class="px-3 py-1.5 rounded-lg bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/40 text-sky-300 text-xs font-semibold transition flex items-center gap-1.5">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Solicitar Vídeo Novamente
+              </button>
+              <button onclick="openTurnModal()" class="px-3 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold transition flex items-center gap-1.5">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i> Firewall / TURN
               </button>
             </div>
           </div>
@@ -603,17 +613,277 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL: FIREWALL / PFSENSE (TURN 443) ==================== -->
+  <div id="modalTurnConfig" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="shield-alert" class="w-5 h-5 text-amber-400"></i>
+          Firewall / pfSense — Configuração TURN (Porta 443)
+        </h3>
+        <button onclick="toggleModal('modalTurnConfig', false)" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed">
+        O <strong>pfSense</strong> utiliza <em>NAT Simétrico</em> por padrão (portas UDP aleatórias) e frequentemente bloqueia P2P direto. Para atravessar o pfSense sem abrir portas no cliente, o WebRTC precisa de um servidor <strong>TURN sobre TCP/TLS (porta 443)</strong>.
+      </p>
+
+      <!-- Toggle Forçar Relay -->
+      <label class="flex items-start gap-3 p-3.5 rounded-xl bg-slate-950 border border-amber-500/30 cursor-pointer">
+        <input id="chkForceTurnRelay" type="checkbox" class="mt-0.5 w-4 h-4 accent-amber-500 rounded" />
+        <div>
+          <p class="text-xs font-bold text-amber-300">Forçar Modo Relay (Recomendado para pfSense / Firewall Restrito)</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Ignora tentativas UDP bloqueadas e força todo o tráfego via TURN (porta 443/80), acelerando a conexão.</p>
+        </div>
+      </label>
+
+      <!-- Servidor TURN Próprio (Opcional) -->
+      <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-bold text-white">Servidor TURN Próprio (Opcional — Coturn / Metered / Twilio)</p>
+          <span class="text-[10px] text-emerald-400 font-semibold">TURN Público 443 já ativo</span>
+        </div>
+        <p class="text-[11px] text-slate-400">
+          O site já vem com servidores TURN públicos (TCP/TLS 443). Para uso corporativo intenso sem limite de banda, informe abaixo seu próprio servidor TURN (ex.: Metered gratuito ou Coturn em VPS):
+        </p>
+        <div class="space-y-2">
+          <input id="inputTurnUrl" type="text" placeholder="Ex: turns:global.relay.metered.ca:443?transport=tcp" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono text-white placeholder-slate-500 outline-none focus:border-sky-500" />
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input id="inputTurnUser" type="text" placeholder="Usuário TURN" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono text-white placeholder-slate-500 outline-none focus:border-sky-500" />
+            <input id="inputTurnPass" type="password" placeholder="Credencial / Senha TURN" class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono text-white placeholder-slate-500 outline-none focus:border-sky-500" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Resultado do Diagnóstico ICE/TURN -->
+      <div id="turnDiagBox" class="hidden p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-300 space-y-1"></div>
+
+      <!-- Dica rápida para quem administra o pfSense -->
+      <div class="p-3 rounded-xl bg-sky-950/30 border border-sky-500/20 text-[11px] text-slate-300 space-y-1">
+        <p class="font-bold text-sky-300">Dica para Administradores de pfSense (Opcional):</p>
+        <p>• Se quiser permitir P2P direto mais rápido no pfSense: vá em <strong>Firewall &gt; NAT &gt; Outbound</strong>, ative <em>Hybrid Outbound NAT</em> e crie uma regra para a LAN com <strong>Static Port</strong> marcado (UDP).</p>
+        <p>• Garanta também que o proxy/firewall libere saída <strong>TCP 443</strong> (WebSockets <code class="text-sky-300">wss://0.peerjs.com</code> e TURN TLS).</p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2 pt-1">
+        <button onclick="saveTurnSettings()" class="flex-1 py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5">
+          <i data-lucide="save" class="w-4 h-4"></i> Salvar e Aplicar
+        </button>
+        <button onclick="testTurnConnectivity()" class="py-2.5 px-4 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/40 text-sky-300 text-xs font-bold transition flex items-center justify-center gap-1.5">
+          <i data-lucide="activity" class="w-4 h-4"></i> Testar Firewall/TURN
+        </button>
+        <button onclick="toggleModal('modalTurnConfig', false)" class="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== SCRIPT PRINCIPAL ==================== -->
   <script>
     // -------------------------------------------------------------
-    // 1. ESTADO GLOBAL E CONFIGURAÇÃO
+    // 1. ESTADO GLOBAL E CONFIGURAÇÃO (STUN + TURN 443 PARA PFSENSE)
     // -------------------------------------------------------------
-    const rtcIceConfig = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:stun2.l.google.com:19302' }
-      ]
+    const TURN_STORAGE_KEY = 'ottimize_turn_config_v1';
+
+    let turnSettings = {
+      forceRelay: false,
+      customUrl: '',
+      customUser: '',
+      customPass: ''
+    };
+
+    function loadTurnSettings() {
+      try {
+        const raw = localStorage.getItem(TURN_STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          turnSettings = {
+            forceRelay: !!parsed.forceRelay,
+            customUrl: (parsed.customUrl || '').trim(),
+            customUser: (parsed.customUser || '').trim(),
+            customPass: (parsed.customPass || '').trim()
+          };
+        }
+      } catch (e) {}
+      updateTurnBadgeUI();
+    }
+
+    function updateTurnBadgeUI() {
+      const badge = document.getElementById('turnRelayBadge');
+      if (!badge) return;
+      if (turnSettings.forceRelay || turnSettings.customUrl) {
+        badge.classList.remove('hidden');
+        badge.innerText = turnSettings.forceRelay ? 'RELAY' : 'TURN';
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    function getRtcIceConfig() {
+      const turnTls443Servers = [
+        // Prioridade máxima para pfSense: TURN sobre TLS/TCP porta 443 (idêntico a HTTPS)
+        {
+          urls: [
+            'turns:openrelay.metered.ca:443?transport=tcp',
+            'turn:openrelay.metered.ca:443?transport=tcp',
+            'turn:openrelay.metered.ca:80?transport=tcp'
+          ],
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: [
+            'turns:standard.relay.metered.ca:443?transport=tcp',
+            'turn:standard.relay.metered.ca:443?transport=tcp',
+            'turn:standard.relay.metered.ca:80?transport=tcp'
+          ],
+          username: 'e8dd65b92f6dde6443d33b8a',
+          credential: '3B3C7s6X+h3t32B+'
+        }
+      ];
+
+      const servers = turnSettings.forceRelay
+        ? [...turnTls443Servers]
+        : [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun.relay.metered.ca:80' },
+            ...turnTls443Servers,
+            {
+              urls: ['turn:openrelay.metered.ca:443', 'turn:standard.relay.metered.ca:443'],
+              username: 'openrelayproject',
+              credential: 'openrelayproject'
+            }
+          ];
+
+      // Se o técnico configurou um TURN próprio (Coturn / Metered / Twilio), coloca em prioridade
+      if (turnSettings.customUrl) {
+        const customEntry = { urls: turnSettings.customUrl };
+        if (turnSettings.customUser) customEntry.username = turnSettings.customUser;
+        if (turnSettings.customPass) customEntry.credential = turnSettings.customPass;
+        servers.unshift(customEntry);
+      }
+
+      return {
+        iceServers: servers,
+        iceTransportPolicy: turnSettings.forceRelay ? 'relay' : 'all',
+        iceCandidatePoolSize: 2
+      };
+    }
+
+    function addConnLog(message, level = 'info') {
+      const box = document.getElementById('liveConnLog');
+      if (!box) return;
+      const colors = {
+        info: 'text-slate-300',
+        ok: 'text-emerald-400',
+        warn: 'text-amber-300',
+        err: 'text-rose-400'
+      };
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const line = document.createElement('p');
+      line.className = colors[level] || 'text-slate-300';
+      line.textContent = `[${time}] ${message}`;
+      box.appendChild(line);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function resetConnLog() {
+      const box = document.getElementById('liveConnLog');
+      if (box) box.innerHTML = '';
+    }
+
+    window.openTurnModal = function() {
+      document.getElementById('chkForceTurnRelay').checked = !!turnSettings.forceRelay;
+      document.getElementById('inputTurnUrl').value = turnSettings.customUrl || '';
+      document.getElementById('inputTurnUser').value = turnSettings.customUser || '';
+      document.getElementById('inputTurnPass').value = turnSettings.customPass || '';
+      toggleModal('modalTurnConfig', true);
+    };
+
+    window.saveTurnSettings = function() {
+      turnSettings = {
+        forceRelay: document.getElementById('chkForceTurnRelay').checked,
+        customUrl: document.getElementById('inputTurnUrl').value.trim(),
+        customUser: document.getElementById('inputTurnUser').value.trim(),
+        customPass: document.getElementById('inputTurnPass').value.trim()
+      };
+      try {
+        localStorage.setItem(TURN_STORAGE_KEY, JSON.stringify(turnSettings));
+      } catch (e) {}
+      updateTurnBadgeUI();
+      if (signalingMode === 'cloud' && !isRestrictedPreview()) {
+        initPeerCloud();
+      }
+      toggleModal('modalTurnConfig', false);
+      showToast(
+        turnSettings.forceRelay
+          ? "Modo Firewall/pfSense (Relay 443) ativado e salvo!"
+          : "Configuração TURN salva e aplicada!",
+        "success"
+      );
+    };
+
+    window.testTurnConnectivity = async function() {
+      const box = document.getElementById('turnDiagBox');
+      box.classList.remove('hidden');
+      box.innerHTML = '<p class="text-amber-300">Testando passagem pelo firewall (STUN + TURN 443)...</p>';
+
+      const tempSettings = {
+        forceRelay: document.getElementById('chkForceTurnRelay').checked,
+        customUrl: document.getElementById('inputTurnUrl').value.trim(),
+        customUser: document.getElementById('inputTurnUser').value.trim(),
+        customPass: document.getElementById('inputTurnPass').value.trim()
+      };
+      const prevSettings = turnSettings;
+      turnSettings = tempSettings;
+      const cfg = getRtcIceConfig();
+      turnSettings = prevSettings;
+
+      const found = { host: 0, srflx: 0, relay: 0 };
+      const relayDetails = [];
+      let pc = null;
+      try {
+        pc = new RTCPeerConnection(cfg);
+        pc.createDataChannel('diag');
+        pc.onicecandidate = (e) => {
+          if (e.candidate && e.candidate.candidate) {
+            const c = e.candidate.candidate;
+            if (c.includes(' typ host')) found.host++;
+            if (c.includes(' typ srflx')) found.srflx++;
+            if (c.includes(' typ relay')) {
+              found.relay++;
+              const parts = c.split(' ');
+              const proto = (parts[2] || '').toUpperCase();
+              const ip = parts[4] || '';
+              if (ip && relayDetails.length < 4) relayDetails.push(`${proto} → ${ip}`);
+            }
+          }
+        };
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        await new Promise((resolve) => setTimeout(resolve, 3500));
+        pc.close();
+
+        const relayOk = found.relay > 0;
+        const stunOk = found.srflx > 0;
+        box.innerHTML = `
+          <p class="font-bold ${relayOk ? 'text-emerald-400' : 'text-rose-400'}">
+            ${relayOk ? '✓ TURN Relay 443 LIBERADO (Atravessa pfSense!)' : '✗ Nenhum candidato TURN Relay obtido'}
+          </p>
+          <p class="text-slate-400">Candidatos coletados → Local (host): <strong class="text-white">${found.host}</strong> | Público (STUN): <strong class="text-white">${found.srflx}</strong> | Relay (TURN): <strong class="${relayOk ? 'text-emerald-400' : 'text-rose-400'}">${found.relay}</strong></p>
+          ${relayDetails.length ? `<p class="text-slate-400">Relays ativos: <strong class="text-emerald-300">${relayDetails.join(' | ')}</strong></p>` : ''}
+          ${!relayOk ? '<p class="text-amber-300 mt-1">O firewall pode estar bloqueando TURN público ou exigindo um servidor TURN próprio (porta TCP 443). Cadastre um servidor TURN gratuito (ex: metered.ca) acima.</p>' : ''}
+          ${relayOk && !stunOk ? '<p class="text-sky-300 mt-1">TURN 443 passou! Lembre-se de marcar "Forçar Modo Relay" nos DOIS lados (Técnico e Cliente) se ambos estiverem atrás de firewall.</p>' : ''}
+        `;
+      } catch (err) {
+        if (pc) try { pc.close(); } catch (e) {}
+        box.innerHTML = `<p class="text-rose-400">Erro no diagnóstico: ${err.message}</p>`;
+      }
     };
 
     let signalingMode = 'cloud'; // 'cloud' | 'local' | 'manual'
@@ -634,6 +904,7 @@
 
     let sessionTimerInterval = null;
     let pingInterval = null;
+    let videoRetryTimer = null;
     let sessionStartTime = null;
     let videoFitMode = 'contain';
 
@@ -665,6 +936,7 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
+      loadTurnSettings();
       regenerateClientCode();
       setupTechInteractionHandlers();
       startLocalBridgeMonitor();
@@ -1044,7 +1316,7 @@ try {
 
         if (peer && !peer.destroyed) peer.destroy();
 
-        peer = new Peer({ config: rtcIceConfig, debug: 0 });
+        peer = new Peer({ config: getRtcIceConfig(), debug: 0 });
 
         peer.on('open', () => {
           dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
@@ -1146,21 +1418,38 @@ try {
 
         if (signalingMode === 'cloud' && !isRestrictedPreview()) {
           if (peer && !peer.destroyed) peer.destroy();
-          peer = new Peer(hostPeerId, { config: rtcIceConfig, debug: 0 });
+          peer = new Peer(hostPeerId, { config: getRtcIceConfig(), debug: 0 });
 
           peer.on('open', () => {
+            addConnLog(`Sala ${generatedClientCode} registrada na Nuvem (Relay: ${turnSettings.forceRelay ? 'SIM' : 'AUTO'}).`, 'ok');
             showToast(`Sala ${generatedClientCode} pronta na Nuvem! Aguardando técnico...`, "success");
           });
 
           peer.on('connection', (conn) => {
             activeDataConn = conn;
+            addConnLog(`Técnico solicitou acesso (${conn.peer.slice(0, 8)}...). Negociando ICE...`, 'info');
             setupPeerDataConnection(conn);
-            showToast("Técnico conectado! Enviando vídeo da tela...", "success");
+            showToast("Técnico conectado! Estabelecendo canal seguro...", "success");
 
-            // Cliente inicia a chamada de vídeo para o técnico (mais confiável em todos os navegadores)
-            const mediaCall = peer.call(conn.peer, localMediaStream);
-            activeMediaCall = mediaCall;
-            setupPeerMediaCall(mediaCall);
+            // Aguarda o DataChannel confirmar abertura antes de abrir a chamada de vídeo
+            // (evita corrida de alocação em servidores TURN 443)
+            let videoSent = false;
+            const triggerHostVideoCall = () => {
+              if (videoSent || !localMediaStream || !peer || peer.destroyed) return;
+              videoSent = true;
+              addConnLog("Enviando transmissão de tela para o técnico...", 'info');
+              const mediaCall = peer.call(conn.peer, localMediaStream);
+              activeMediaCall = mediaCall;
+              setupPeerMediaCall(mediaCall);
+            };
+
+            conn.on('open', () => {
+              setTimeout(triggerHostVideoCall, 350);
+            });
+            // Fallback caso o DataChannel demore mas a sinalização já esteja pronta
+            setTimeout(() => {
+              if (!videoSent && activeDataConn === conn) triggerHostVideoCall();
+            }, 3000);
           });
 
           peer.on('call', (call) => {
@@ -1170,6 +1459,7 @@ try {
           });
 
           peer.on('error', (err) => {
+            addConnLog(`Erro PeerJS: ${err.type || err.message}`, 'err');
             if (err.type === 'unavailable-id') {
               regenerateClientCode();
               startHostSharing(isSimulated);
@@ -1210,25 +1500,30 @@ try {
         return;
       }
 
+      resetConnLog();
       currentRole = 'tech';
       currentRoomCode = rawCode.slice(0, 6);
       const formattedCode = `${currentRoomCode.slice(0,3)}-${currentRoomCode.slice(3,6)}`;
+      addConnLog(`Conectando à sala ${formattedCode} (Modo Relay 443: ${turnSettings.forceRelay ? 'ATIVADO' : 'AUTO'})...`, 'info');
 
       if (signalingMode === 'cloud' && !isRestrictedPreview()) {
         const hostPeerId = `acessoweb-remoto-${currentRoomCode}`;
+        // Sempre cria/garante que o Peer usa a configuração TURN mais recente
         if (!peer || peer.destroyed) {
-          peer = new Peer({ config: rtcIceConfig, debug: 0 });
+          peer = new Peer({ config: getRtcIceConfig(), debug: 0 });
         }
 
         // Técnico aguarda a chamada de vídeo enviada pelo cliente assim que o DataChannel abrir
         peer.off('call');
         peer.on('call', (call) => {
+          addConnLog("Chamada de vídeo recebida do cliente! Negociando mídia...", 'ok');
           activeMediaCall = call;
           call.answer();
           setupPeerMediaCall(call);
         });
 
         const startConn = () => {
+          addConnLog(`Sinalização Nuvem OK. Chamando cliente (${hostPeerId})...`, 'info');
           const conn = peer.connect(hostPeerId, { reliable: true });
           activeDataConn = conn;
           setupPeerDataConnection(conn);
@@ -1237,7 +1532,9 @@ try {
         if (peer.open) startConn();
         else peer.once('open', startConn);
 
+        peer.off('error');
         peer.on('error', (err) => {
+          addConnLog(`Erro PeerJS: ${err.type || err.message}`, 'err');
           if (err.type === 'peer-unavailable') {
             showToast("Cliente não encontrado. Confirme se ele clicou em Compartilhar Tela.", "error");
           }
@@ -1253,110 +1550,289 @@ try {
       setTechTool('pointer');
     };
 
-    // -------------------------------------------------------------
-    // 7. DEMO INTEGRADA WEBRTC LOOPBACK (FUNCIONA NO CANVAS)
-    // -------------------------------------------------------------
-    window.startIntegratedLoopbackDemo = async function() {
-      try {
-        disconnectSession(true);
-        currentRole = 'tech';
-        currentRoomCode = 'DEMO-P2P';
-
-        localMediaStream = createSimulatedCanvasStream();
-        loopbackHostPC = new RTCPeerConnection();
-        nativePeerConn = new RTCPeerConnection();
-
-        loopbackHostPC.onicecandidate = (e) => {
-          if (e.candidate && nativePeerConn) nativePeerConn.addIceCandidate(e.candidate).catch(() => {});
-        };
-        nativePeerConn.onicecandidate = (e) => {
-          if (e.candidate && loopbackHostPC) loopbackHostPC.addIceCandidate(e.candidate).catch(() => {});
-        };
-
-        localMediaStream.getTracks().forEach(track => loopbackHostPC.addTrack(track, localMediaStream));
-
-        loopbackHostChannel = loopbackHostPC.createDataChannel('supportChannel');
-        loopbackHostChannel.onmessage = (e) => {
-          try {
-            const msg = JSON.parse(e.data);
-            if (msg.type === 'ping') {
-              loopbackHostChannel.send(JSON.stringify({ type: 'pong', timestamp: msg.timestamp }));
-            } else if (msg.type === 'chat') {
-              setTimeout(() => {
-                if (loopbackHostChannel && loopbackHostChannel.readyState === 'open') {
-                  loopbackHostChannel.send(JSON.stringify({
-                    type: 'chat',
-                    sender: 'Cliente (Demo)',
-                    text: 'Recebido! Estou vendo suas marcações na tela.',
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                  }));
-                }
-              }, 800);
-            }
-          } catch (err) {}
-        };
-
-        nativePeerConn.ondatachannel = (e) => setupNativeDataChannel(e.channel);
-        nativePeerConn.ontrack = (e) => attachRemoteStream(e.streams[0], "Ao Vivo (Demo WebRTC)");
-
-        const offer = await loopbackHostPC.createOffer();
-        await loopbackHostPC.setLocalDescription(offer);
-        await nativePeerConn.setRemoteDescription(offer);
-
-        const answer = await nativePeerConn.createAnswer();
-        await nativePeerConn.setLocalDescription(answer);
-        await loopbackHostPC.setRemoteDescription(answer);
-
-        switchToLiveView('TÉCNICO (DEMO)', 'DEMO-P2P');
-        document.getElementById('techToolbar').classList.remove('hidden');
-        document.getElementById('techClickCapture').classList.remove('hidden');
-        setTechTool('pointer');
-        showToast("Demo ativa! Teste o Ponteiro Guia, Desenho Livre e Chat.", "success");
-      } catch (err) {
-        showToast("Erro ao iniciar Demo WebRTC.", "error");
+    window.requestVideoRetry = function() {
+      if (currentRole !== 'tech') return;
+      if (activeDataConn && activeDataConn.open) {
+        addConnLog("Solicitando reenvio de vídeo ao cliente...", 'warn');
+        sendDataMessage({ type: 'request_video' });
+        showToast("Solicitação de vídeo enviada ao cliente.", "info");
+      } else if (currentRoomCode && signalingMode === 'cloud') {
+        addConnLog("Canal ainda não abriu. Tentando reconectar...", 'warn');
+        const hostPeerId = `acessoweb-remoto-${currentRoomCode}`;
+        if (peer && !peer.destroyed && peer.open) {
+          const conn = peer.connect(hostPeerId, { reliable: true });
+          activeDataConn = conn;
+          setupPeerDataConnection(conn);
+        }
       }
     };
+    function monitorPeerConnectionIce(pc, labelPrefix) {
+      if (!pc) return;
+      pc.addEventListener('iceconnectionstatechange', () => {
+        const state = pc.iceConnectionState;
+        addConnLog(`${labelPrefix} → ICE: ${state}`, state === 'failed' ? 'err' : (state === 'connected' || state === 'completed' ? 'ok' : 'info'));
+        if (state === 'checking') {
+          updateConnStatusUI("Negociando Firewall/NAT...", "amber");
+        } else if (state === 'connected' || state === 'completed') {
+          // Verifica se fechou direto (P2P) ou via servidor TURN (Relay)
+          if (pc.getStats) {
+            pc.getStats().then((stats) => {
+              let viaRelay = false;
+              stats.forEach((report) => {
+                if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.nominated) {
+                  const localCand = stats.get(report.localCandidateId);
+                  const remoteCand = stats.get(report.remoteCandidateId);
+                  if ((localCand && localCand.candidateType === 'relay') || (remoteCand && remoteCand.candidateType === 'relay')) {
+                    viaRelay = true;
+                  }
+                }
+              });
+              addConnLog(`${labelPrefix} estabelecido via ${viaRelay ? 'TURN Relay 443' : 'P2P Direto'}!`, 'ok');
+              updateConnStatusUI(viaRelay ? `${labelPrefix} (TURN 443)` : `${labelPrefix} (P2P Direto)`, "emerald");
+            }).catch(() => {});
+          }
+        } else if (state === 'failed') {
+          updateConnStatusUI("Bloqueado por Firewall/NAT", "rose");
+          addConnLog("ICE falhou! Verifique se AMBOS os lados têm TURN 443 ativo ou cadastre um TURN próprio.", 'err');
+          showToast("Conexão bloqueada pelo firewall. Verifique 'Firewall / TURN' nos dois computadores.", "error");
+        }
+      });
+    }
 
-    // -------------------------------------------------------------
-    // 8. CANAL DE DADOS & MÍDIA (PEERJS E NATIVO)
-    // -------------------------------------------------------------
     function setupPeerDataConnection(conn) {
+      if (conn.peerConnection) monitorPeerConnectionIce(conn.peerConnection, "Dados");
       conn.on('open', () => {
-        updateConnStatusUI("Conectado (Nuvem P2P)", "emerald");
+        addConnLog("Canal de Dados (Chat/Controle) ABERTO!", 'ok');
+        updateConnStatusUI("Conectado (Aguardando vídeo...)", "emerald");
         startPingLoop();
         if (currentRole === 'host') {
           sendDataMessage({ type: 'bridge_status', online: isLocalBridgeOnline });
+        } else if (currentRole === 'tech') {
+          // Se o vídeo não chegar em 5s após o canal abrir, pede reenvio automaticamente
+          if (videoRetryTimer) clearTimeout(videoRetryTimer);
+          videoRetryTimer = setTimeout(() => {
+            const v = document.getElementById('remoteVideo');
+            if (!v || !v.srcObject) {
+              addConnLog("Vídeo ainda não chegou — solicitando reenvio automático...", 'warn');
+              sendDataMessage({ type: 'request_video' });
+            }
+          }, 5000);
         }
       });
       conn.on('data', (data) => handleIncomingDataMessage(data));
+      conn.on('error', (err) => {
+        addConnLog(`Erro no Canal de Dados: ${err.message || err}`, 'err');
+      });
       conn.on('close', () => {
         updateConnStatusUI("Desconectado", "rose");
+        addConnLog("Canal de Dados encerrado.", 'warn');
         showToast("A outra ponta encerrou a conexão.", "info");
       });
     }
 
     function setupPeerMediaCall(call) {
+      if (call.peerConnection) {
+        monitorPeerConnectionIce(call.peerConnection, "Vídeo");
+        // Fallback direto via ontrack caso o evento 'stream' do PeerJS atrase
+        call.peerConnection.addEventListener('track', (ev) => {
+          if (ev.streams && ev.streams[0]) {
+            attachRemoteStream(ev.streams[0], "Ao Vivo (Nuvem)");
+          }
+        });
+      }
       call.on('stream', (remoteStream) => {
-        attachRemoteStream(remoteStream, "Ao Vivo (Nuvem P2P)");
+        addConnLog("Stream de vídeo recebido! Renderizando tela...", 'ok');
+        attachRemoteStream(remoteStream, "Ao Vivo (Nuvem)");
+      });
+      call.on('error', (err) => {
+        addConnLog(`Erro na chamada de vídeo: ${err.message || err}`, 'err');
       });
     }
 
-    function setupNativeDataChannel(ch) {
-      nativeDataChannel = ch;
-      ch.onopen = () => {
-        startPingLoop();
-        if (currentRole === 'host') {
-          sendDataMessage({ type: 'bridge_status', online: isLocalBridgeOnline });
+    // -------------------------------------------------------------
+    // 7. CANAL DE DADOS, MENSAGENS E FERRAMENTAS DO TÉCNICO
+    // -------------------------------------------------------------
+    function sendDataMessage(obj) {
+      try {
+        if (activeDataConn && activeDataConn.open) {
+          activeDataConn.send(obj);
+        } else if (nativeDataChannel && nativeDataChannel.readyState === 'open') {
+          nativeDataChannel.send(JSON.stringify(obj));
         }
+      } catch (e) {}
+    }
+
+    function handleIncomingDataMessage(raw) {
+      let msg = raw;
+      if (typeof raw === 'string') {
+        try { msg = JSON.parse(raw); } catch (e) { return; }
+      }
+      if (!msg || typeof msg !== 'object') return;
+
+      if (msg.type === 'ping') {
+        sendDataMessage({ type: 'pong', timestamp: msg.timestamp });
+      } else if (msg.type === 'pong') {
+        const latency = Math.max(1, Date.now() - msg.timestamp);
+        const pingEl = document.getElementById('pingVal');
+        if (pingEl) pingEl.innerText = `${latency} ms`;
+      } else if (msg.type === 'chat') {
+        appendChatMessage(msg.sender || 'Remoto', msg.text || '', msg.timestamp || '', false);
+      } else if (msg.type === 'pointer') {
+        renderVisualPing(msg.x, msg.y, msg.label);
+        playPingSound();
+      } else if (msg.type === 'draw') {
+        drawSegmentOnCanvas(msg.x1, msg.y1, msg.x2, msg.y2);
+      } else if (msg.type === 'clear_draw') {
+        clearRemoteDrawings(false);
+      } else if (msg.type === 'bridge_status') {
+        isRemoteBridgeOnline = !!msg.online;
+        updateBridgeUI();
+        if (currentRole === 'tech') {
+          showToast(
+            isRemoteBridgeOnline
+              ? "Cliente ativou o Controle Real! Você já pode usar Mouse e Teclado."
+              : "Controle Real desativado no cliente.",
+            isRemoteBridgeOnline ? "success" : "info"
+          );
+        }
+      } else if (msg.type === 'remote_input' && currentRole === 'host') {
+        forwardCommandToLocalBridge(msg.cmd);
+      } else if (msg.type === 'request_video' && currentRole === 'host') {
+        if (peer && !peer.destroyed && activeDataConn && localMediaStream) {
+          addConnLog("Técnico solicitou reenvio de vídeo. Reenviando...", 'info');
+          const mediaCall = peer.call(activeDataConn.peer, localMediaStream);
+          activeMediaCall = mediaCall;
+          setupPeerMediaCall(mediaCall);
+        }
+      }
+    }
+
+    window.setTechTool = function(tool) {
+      activeTechTool = tool;
+      const btnCtrl = document.getElementById('btnToolControl');
+      const btnPtr = document.getElementById('btnToolPointer');
+      const btnDraw = document.getElementById('btnToolDraw');
+      const btnClear = document.getElementById('btnClearDraw');
+      const ptrSel = document.getElementById('pointerLabelSelect');
+      const layer = document.getElementById('techClickCapture');
+
+      const inactiveCls = "px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-slate-800 text-slate-300 border border-slate-700";
+      if (btnCtrl) btnCtrl.className = inactiveCls;
+      if (btnPtr) btnPtr.className = inactiveCls;
+      if (btnDraw) btnDraw.className = inactiveCls;
+
+      if (tool === 'control') {
+        if (btnCtrl) btnCtrl.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-emerald-600 text-white border border-emerald-500";
+        if (layer) { layer.style.cursor = 'default'; layer.focus(); }
+        if (btnClear) btnClear.classList.add('hidden');
+        if (ptrSel) ptrSel.classList.add('hidden');
+        if (!isRemoteBridgeOnline) {
+          showToast("Para controlar o mouse/teclado, peça ao cliente para abrir o AtivarControleRemoto.bat.", "info");
+        }
+      } else if (tool === 'draw') {
+        if (btnDraw) btnDraw.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-amber-600 text-white border border-amber-500";
+        if (layer) layer.style.cursor = 'crosshair';
+        if (btnClear) btnClear.classList.remove('hidden');
+        if (ptrSel) ptrSel.classList.add('hidden');
+      } else {
+        if (btnPtr) btnPtr.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-sky-600 text-white border border-sky-500";
+        if (layer) layer.style.cursor = 'crosshair';
+        if (btnClear) btnClear.classList.add('hidden');
+        if (ptrSel) ptrSel.classList.remove('hidden');
+      }
+    };
+
+    // -------------------------------------------------------------
+    // 8. DEMO INTEGRADA (LOOPBACK WEBRTC LOCAL NA MESMA TELA)
+    // -------------------------------------------------------------
+    window.startIntegratedLoopbackDemo = async function() {
+      try {
+        disconnectSession(true);
+        resetConnLog();
+        currentRole = 'tech';
+        localMediaStream = createSimulatedCanvasStream();
+
+        loopbackHostPC = new RTCPeerConnection();
+        nativePeerConn = new RTCPeerConnection();
+
+        loopbackHostPC.onicecandidate = (e) => {
+          if (e.candidate) nativePeerConn.addIceCandidate(e.candidate).catch(() => {});
+        };
+        nativePeerConn.onicecandidate = (e) => {
+          if (e.candidate) loopbackHostPC.addIceCandidate(e.candidate).catch(() => {});
+        };
+
+        localMediaStream.getTracks().forEach(t => loopbackHostPC.addTrack(t, localMediaStream));
+
+        loopbackHostChannel = loopbackHostPC.createDataChannel('demo-data');
+        loopbackHostChannel.onmessage = (ev) => {
+          try {
+            const msg = JSON.parse(ev.data);
+            if (msg.type === 'ping') {
+              loopbackHostChannel.send(JSON.stringify({ type: 'pong', timestamp: msg.timestamp }));
+            } else if (msg.type === 'chat') {
+              setTimeout(() => {
+                if (loopbackHostChannel && loopbackHostChannel.readyState === 'open') {
+                  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                  loopbackHostChannel.send(JSON.stringify({
+                    type: 'chat',
+                    sender: 'Cliente (Demo)',
+                    text: 'Recebi sua mensagem: "' + msg.text + '"',
+                    timestamp: timeStr
+                  }));
+                }
+              }, 700);
+            }
+          } catch (e) {}
+        };
+
+        nativePeerConn.ondatachannel = (ev) => {
+          setupNativeDataChannel(ev.channel);
+        };
+        nativePeerConn.ontrack = (ev) => {
+          if (ev.streams && ev.streams[0]) {
+            attachRemoteStream(ev.streams[0], "Ao Vivo (Demo WebRTC)");
+          }
+        };
+
+        const offer = await loopbackHostPC.createOffer();
+        await loopbackHostPC.setLocalDescription(offer);
+        await nativePeerConn.setRemoteDescription(offer);
+        const answer = await nativePeerConn.createAnswer();
+        await nativePeerConn.setLocalDescription(answer);
+        await loopbackHostPC.setRemoteDescription(answer);
+
+        switchToLiveView('TÉCNICO (DEMO)', 'DEMO-01');
+        document.getElementById('techToolbar').classList.remove('hidden');
+        document.getElementById('techClickCapture').classList.remove('hidden');
+        setTechTool('pointer');
+        showToast("Demo WebRTC iniciada! Teste o Ponteiro Guia, Desenho, Tela Cheia e Chat.", "success");
+      } catch (err) {
+        console.error(err);
+        showToast("Erro ao iniciar Demo Integrada.", "error");
+      }
+    };
+
+    function setupNativeDataChannel(channel) {
+      nativeDataChannel = channel;
+      channel.onopen = () => {
+        updateConnStatusUI("Conectado (Canal P2P)", "emerald");
+        startPingLoop();
       };
-      ch.onmessage = (e) => {
-        try { handleIncomingDataMessage(JSON.parse(e.data)); } catch (err) {}
-      };
+      channel.onmessage = (ev) => handleIncomingDataMessage(ev.data);
+      channel.onclose = () => updateConnStatusUI("Desconectado", "rose");
     }
 
     function attachRemoteStream(stream, statusLabel) {
+      if (videoRetryTimer) {
+        clearTimeout(videoRetryTimer);
+        videoRetryTimer = null;
+      }
       const videoEl = document.getElementById('remoteVideo');
-      videoEl.srcObject = stream;
+      if (videoEl.srcObject !== stream) {
+        videoEl.srcObject = stream;
+      }
+      videoEl.play().catch(() => {});
       document.getElementById('videoPlaceholder').classList.add('hidden');
       updateConnStatusUI(statusLabel, "emerald");
       videoEl.onloadedmetadata = () => {
@@ -1371,107 +1847,16 @@ try {
       };
     }
 
-    function sendDataMessage(obj) {
-      try {
-        if (activeDataConn && activeDataConn.open) {
-          activeDataConn.send(obj);
-        } else if (nativeDataChannel && nativeDataChannel.readyState === 'open') {
-          nativeDataChannel.send(JSON.stringify(obj));
-        }
-      } catch (e) {}
-    }
-
-    function handleIncomingDataMessage(msg) {
-      if (!msg || typeof msg !== 'object') return;
-
-      if (msg.type === 'ping') {
-        sendDataMessage({ type: 'pong', timestamp: msg.timestamp });
-      } else if (msg.type === 'pong') {
-        const latency = Math.max(1, Date.now() - msg.timestamp);
-        const el = document.getElementById('pingVal');
-        if (el) el.innerText = `${latency} ms`;
-      } else if (msg.type === 'chat') {
-        appendChatMessage(msg.sender || 'Remoto', msg.text || '', msg.timestamp || '', false);
-      } else if (msg.type === 'pointer') {
-        renderVisualPing(msg.x, msg.y, msg.label);
-        playPingSound();
-      } else if (msg.type === 'draw') {
-        drawSegmentOnCanvas(msg.x1, msg.y1, msg.x2, msg.y2);
-      } else if (msg.type === 'clear_draw') {
-        clearRemoteDrawings(false);
-      } else if (msg.type === 'bridge_status') {
-        isRemoteBridgeOnline = !!msg.online;
-        updateBridgeUI();
-        if (isRemoteBridgeOnline && currentRole === 'tech') {
-          showToast("Cliente ativou o Controle Real! Você já pode usar Mouse e Teclado.", "success");
-        }
-      } else if (msg.type === 'remote_input' && currentRole === 'host') {
-        forwardCommandToLocalBridge(msg.cmd);
-      }
-    }
-
     // -------------------------------------------------------------
-    // 9. FERRAMENTAS DO TÉCNICO (CONTROLE, PONTEIRO E DESENHO)
+    // 9. MAPEAMENTO PRECISO DE COORDENADAS, PONTEIRO E DESENHO
     // -------------------------------------------------------------
-    window.setTechTool = function(tool) {
-      activeTechTool = tool;
-
-      const btnControl = document.getElementById('btnToolControl');
-      const btnPointer = document.getElementById('btnToolPointer');
-      const btnDraw = document.getElementById('btnToolDraw');
-      const btnClear = document.getElementById('btnClearDraw');
-      const layer = document.getElementById('techClickCapture');
-
-      const inactiveClass = "px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-slate-800 text-slate-300 border border-slate-700";
-      if (btnControl) btnControl.className = inactiveClass;
-      if (btnPointer) btnPointer.className = inactiveClass;
-      if (btnDraw) btnDraw.className = inactiveClass;
-      if (btnClear) btnClear.classList.add('hidden');
-
-      if (tool === 'control') {
-        if (btnControl) btnControl.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-emerald-600 text-white border border-emerald-500";
-        if (layer) {
-          layer.classList.remove('cursor-crosshair');
-          layer.classList.add('cursor-default');
-          layer.focus();
-        }
-        if (!isRemoteBridgeOnline && currentRoomCode !== 'DEMO-P2P') {
-          showToast("Peça ao cliente para abrir o AtivarControleRemoto.bat para liberar o Controle Real.", "info");
-        }
-      } else if (tool === 'draw') {
-        if (btnDraw) btnDraw.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-amber-600 text-white border border-amber-500";
-        if (btnClear) btnClear.classList.remove('hidden');
-        if (layer) {
-          layer.classList.remove('cursor-default');
-          layer.classList.add('cursor-crosshair');
-        }
-        syncVideoOverlayBounds();
-      } else {
-        if (btnPointer) btnPointer.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-sky-600 text-white border border-sky-500";
-        if (layer) {
-          layer.classList.remove('cursor-default');
-          layer.classList.add('cursor-crosshair');
-        }
-      }
-    };
-
     function getVideoContentRect() {
-      const video = document.getElementById('remoteVideo');
-      const stage = document.getElementById('videoStageContainer');
-      if (!video || !stage) return null;
-
-      const vRect = video.getBoundingClientRect();
-      const vw = video.videoWidth;
-      const vh = video.videoHeight;
-
-      if (!vw || !vh || !vRect.width || !vRect.height) {
-        return {
-          left: vRect.left,
-          top: vRect.top,
-          width: vRect.width || 1,
-          height: vRect.height || 1
-        };
-      }
+      const videoEl = document.getElementById('remoteVideo');
+      if (!videoEl) return null;
+      const vRect = videoEl.getBoundingClientRect();
+      const vw = videoEl.videoWidth;
+      const vh = videoEl.videoHeight;
+      if (!vw || !vh || !vRect.width || !vRect.height) return vRect;
 
       const videoRatio = vw / vh;
       const elemRatio = vRect.width / vRect.height;
@@ -1702,7 +2087,7 @@ try {
             if (e.candidate) broadcastChannel.postMessage({ type: 'ICE', room: currentRoomCode, candidate: e.candidate.toJSON(), from: 'host' });
           };
           localMediaStream.getTracks().forEach(t => nativePeerConn.addTrack(t, localMediaStream));
-          setupNativeDataChannel(nativePeerConn.createDataChannel('support'));
+          setupNativeDataChannel(nativePeerConn.createDataChannel('local-data'));
           const offer = await nativePeerConn.createOffer();
           await nativePeerConn.setLocalDescription(offer);
           broadcastChannel.postMessage({ type: 'OFFER', room: currentRoomCode, sdp: offer });
@@ -1712,16 +2097,17 @@ try {
             if (e.candidate) broadcastChannel.postMessage({ type: 'ICE', room: currentRoomCode, candidate: e.candidate.toJSON(), from: 'tech' });
           };
           nativePeerConn.ondatachannel = (e) => setupNativeDataChannel(e.channel);
-          nativePeerConn.ontrack = (e) => attachRemoteStream(e.streams[0], "Ao Vivo (Local 2 Abas)");
+          nativePeerConn.ontrack = (e) => attachRemoteStream(e.streams[0], "Ao Vivo (Local)");
           await nativePeerConn.setRemoteDescription(msg.sdp);
           const answer = await nativePeerConn.createAnswer();
           await nativePeerConn.setLocalDescription(answer);
           broadcastChannel.postMessage({ type: 'ANSWER', room: currentRoomCode, sdp: answer });
         } else if (msg.type === 'ANSWER' && currentRole === 'host' && nativePeerConn) {
           await nativePeerConn.setRemoteDescription(msg.sdp);
-          updateConnStatusUI("Conectado (Local 2 Abas)", "emerald");
-        } else if (msg.type === 'ICE' && nativePeerConn && msg.from !== currentRole) {
-          nativePeerConn.addIceCandidate(new RTCIceCandidate(msg.candidate)).catch(() => {});
+        } else if (msg.type === 'ICE' && nativePeerConn) {
+          if ((msg.from === 'host' && currentRole === 'tech') || (msg.from === 'tech' && currentRole === 'host')) {
+            try { await nativePeerConn.addIceCandidate(new RTCIceCandidate(msg.candidate)); } catch (e) {}
+          }
         }
       };
     }
@@ -1730,15 +2116,15 @@ try {
       try {
         localMediaStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
         currentRole = 'host';
-        nativePeerConn = new RTCPeerConnection(rtcIceConfig);
+        nativePeerConn = new RTCPeerConnection(getRtcIceConfig());
         localMediaStream.getTracks().forEach(t => nativePeerConn.addTrack(t, localMediaStream));
-        setupNativeDataChannel(nativePeerConn.createDataChannel('manual'));
+        setupNativeDataChannel(nativePeerConn.createDataChannel('manual-data'));
         const offer = await nativePeerConn.createOffer();
         await nativePeerConn.setLocalDescription(offer);
         nativePeerConn.onicegatheringstatechange = () => {
           if (nativePeerConn.iceGatheringState === 'complete') {
             document.getElementById('manualLocalSDP').value = btoa(JSON.stringify(nativePeerConn.localDescription));
-            showToast("Oferta SDP gerada! Envie para o técnico.", "success");
+            showToast("Oferta gerada! Copie e envie ao técnico.", "success");
           }
         };
       } catch (e) {
@@ -1751,7 +2137,7 @@ try {
         const raw = document.getElementById('manualRemoteSDP').value.trim();
         if (!raw) return showToast("Cole a oferta do cliente primeiro.", "error");
         currentRole = 'tech';
-        nativePeerConn = new RTCPeerConnection(rtcIceConfig);
+        nativePeerConn = new RTCPeerConnection(getRtcIceConfig());
         nativePeerConn.ondatachannel = (e) => setupNativeDataChannel(e.channel);
         nativePeerConn.ontrack = (e) => {
           toggleModal('modalManualSDP', false);
@@ -1994,7 +2380,7 @@ try {
     window.disconnectSession = function(silent = false) {
       if (sessionTimerInterval) clearInterval(sessionTimerInterval);
       if (pingInterval) clearInterval(pingInterval);
-
+      if (videoRetryTimer) { clearTimeout(videoRetryTimer); videoRetryTimer = null; }
       if (activeDataConn) { try { activeDataConn.close(); } catch(e){} activeDataConn = null; }
       if (activeMediaCall) { try { activeMediaCall.close(); } catch(e){} activeMediaCall = null; }
       if (localMediaStream) { localMediaStream.getTracks().forEach(t => t.stop()); localMediaStream = null; }
