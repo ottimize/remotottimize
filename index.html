@@ -603,7 +603,7 @@
       </div>
       <div class="space-y-3">
         <button onclick="switchToSignalingMode('cloud')" class="w-full text-left p-3.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-sky-500/50 transition">
-          <p class="text-sm font-bold text-sky-400">1. Nuvem WebRTC (PeerJS)</p>
+          <p class="text-sm font-bold text-sky-400">1. Nuvem Ottimize</p>
           <p class="text-xs text-slate-400 mt-0.5">Ideal para acessar clientes pela internet usando apenas o código de 6 dígitos.</p>
         </button>
         <button onclick="switchToSignalingMode('local')" class="w-full text-left p-3.5 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-purple-500/50 transition">
@@ -1512,7 +1512,7 @@ try {
       if (!dot || !txt) return;
       if (state === 'online') {
         dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
-        txt.innerText = customText || "Nuvem WebRTC: Online";
+        txt.innerText = customText || "Nuvem: Online";
       } else if (state === 'connecting') {
         dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
         txt.innerText = customText || "Conectando Nuvem...";
@@ -1558,7 +1558,7 @@ try {
           if (peer !== currentPeer) return;
           clearPeerTimers();
           peerRetryCount = 0;
-          setCloudStatusUI('online', 'Nuvem WebRTC: Online');
+          setCloudStatusUI('online', 'Nuvem: Online');
         });
 
         currentPeer.on('connection', (conn) => {
@@ -1622,7 +1622,7 @@ try {
       } else {
         initPeerCloud();
       }
-      showToast("Reconectando à Nuvem WebRTC...", "info");
+      showToast("Reconectando à Nuvem...", "info");
     };
 
     window.switchToSignalingMode = function(mode, silent = false) {
@@ -1652,7 +1652,7 @@ try {
         if (hostLabel) hostLabel.innerText = "Sinalização: PeerJS Nuvem";
         peerRetryCount = 0;
         if (peer && !peer.destroyed && peer.open && !peer.disconnected) {
-          setCloudStatusUI('online', 'Nuvem WebRTC: Online');
+          setCloudStatusUI('online', 'Nuvem: Online');
         } else if (peer && !peer.destroyed && peer.disconnected) {
           setCloudStatusUI('connecting', 'Reconectando Nuvem...');
           try { peer.reconnect(); } catch (e) { initPeerCloud(); }
@@ -1685,7 +1685,7 @@ try {
 
           hostPeer.on('open', () => {
             if (peer !== hostPeer) return;
-            setCloudStatusUI('online', 'Nuvem WebRTC: Online');
+            setCloudStatusUI('online', 'Nuvem: Online');
             addConnLog(`Sala ${generatedClientCode} registrada na Nuvem (Relay: ${turnSettings.forceRelay ? 'SIM' : 'AUTO'}).`, 'ok');
             showToast(`Sala ${generatedClientCode} pronta na Nuvem! Aguardando técnico...`, "success");
           });
@@ -1740,7 +1740,7 @@ try {
               startHostSharing();
             } else {
               setCloudStatusUI('connecting', 'Reconectando Nuvem...');
-              showToast("Oscilação na Nuvem WebRTC. Tentando reconectar...", "info");
+              showToast("Oscilação na Nuvem. Tentando reconectar...", "info");
             }
           });
         } else {
