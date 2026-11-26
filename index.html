@@ -233,13 +233,12 @@
               </div>
             </div>
 
-            <!-- Botão Principal de Compartilhamento -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
-              <button onclick="startHostSharing(false)" class="py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2">
-                <i data-lucide="screen-share" class="w-4 h-4"></i>
+            <!-- Botão Principal de Compartilhamento (largura total igual à caixa do código) -->
+            <div class="mb-5">
+              <button onclick="startHostSharing(false)" class="w-full py-4 sm:py-5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-base shadow-lg shadow-emerald-600/25 transition flex items-center justify-center gap-2.5">
+                <i data-lucide="screen-share" class="w-5 h-5"></i>
                 Compartilhar Tela Real
               </button>
-              
             </div>
 
             <!-- Caixa Simples de Controle Real (Sem Instalar Nada) -->
@@ -288,9 +287,6 @@
           <div class="flex flex-wrap items-center gap-2 shrink-0">
             <button onclick="copyPortalLink('cliente')" class="px-3 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
               <i data-lucide="link" class="w-3.5 h-3.5"></i> Copiar Link Cliente
-            </button>
-            <button onclick="startIntegratedLoopbackDemo()" class="px-3 py-2 bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-              <i data-lucide="play-circle" class="w-3.5 h-3.5"></i> Demo Integrada
             </button>
             <button onclick="switchToSignalingMode('local')" class="px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
               <i data-lucide="app-window" class="w-3.5 h-3.5"></i> 2 Abas
@@ -1046,8 +1042,6 @@
     let broadcastChannel = null;
     let nativePeerConn = null;
     let nativeDataChannel = null;
-    let loopbackHostPC = null;
-    let loopbackHostChannel = null;
 
     let sessionTimerInterval = null;
     let pingInterval = null;
@@ -1616,7 +1610,7 @@ try {
 
     window.reconnectPeerCloud = function() {
       if (isRestrictedPreview()) {
-        showToast("No Preview Sandbox, WebSockets externos são bloqueados. Baixe/hospede o HTML para usar a Nuvem, ou teste a Demo Integrada.", "info");
+        showToast("No Preview Sandbox, WebSockets externos são bloqueados. Baixe/hospede o HTML para usar a Nuvem.", "info");
         return;
       }
       signalingMode = 'cloud';
@@ -1671,17 +1665,12 @@ try {
     // -------------------------------------------------------------
     // 5. FLUXO DO CLIENTE (COMPARTILHAR TELA)
     // -------------------------------------------------------------
-    window.startHostSharing = async function(isSimulated = false) {
+    window.startHostSharing = async function() {
       try {
-        if (isSimulated) {
-          localMediaStream = createSimulatedCanvasStream();
-          showToast("Tela Simulada (30 FPS) iniciada.", "info");
-        } else {
-          localMediaStream = await navigator.mediaDevices.getDisplayMedia({
-            video: { displaySurface: "monitor", cursor: "always", frameRate: 30 },
-            audio: false
-          });
-        }
+        localMediaStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { displaySurface: "monitor", cursor: "always", frameRate: 30 },
+          audio: false
+        });
 
         currentRole = 'host';
         currentRoomCode = generatedClientCode.replace('-', '').trim();
@@ -1748,7 +1737,7 @@ try {
             addConnLog(`Erro PeerJS: ${err.type || err.message}`, 'err');
             if (err.type === 'unavailable-id') {
               regenerateClientCode();
-              startHostSharing(isSimulated);
+              startHostSharing();
             } else {
               setCloudStatusUI('connecting', 'Reconectando Nuvem...');
               showToast("Oscilação na Nuvem WebRTC. Tentando reconectar...", "info");
@@ -1774,7 +1763,7 @@ try {
 
       } catch (err) {
         console.error(err);
-        showToast("Permissão de tela negada ou indisponível. Teste a Tela Simulada.", "error");
+        showToast("Permissão de compartilhamento de tela cancelada ou indisponível neste navegador.", "error");
       }
     };
 
@@ -2032,78 +2021,6 @@ try {
       }
     };
 
-    // -------------------------------------------------------------
-    // 8. DEMO INTEGRADA (LOOPBACK WEBRTC LOCAL NA MESMA TELA)
-    // -------------------------------------------------------------
-    window.startIntegratedLoopbackDemo = async function() {
-      try {
-        disconnectSession(true);
-        resetConnLog();
-        currentRole = 'tech';
-        localMediaStream = createSimulatedCanvasStream();
-
-        loopbackHostPC = new RTCPeerConnection();
-        nativePeerConn = new RTCPeerConnection();
-
-        loopbackHostPC.onicecandidate = (e) => {
-          if (e.candidate) nativePeerConn.addIceCandidate(e.candidate).catch(() => {});
-        };
-        nativePeerConn.onicecandidate = (e) => {
-          if (e.candidate) loopbackHostPC.addIceCandidate(e.candidate).catch(() => {});
-        };
-
-        localMediaStream.getTracks().forEach(t => loopbackHostPC.addTrack(t, localMediaStream));
-
-        loopbackHostChannel = loopbackHostPC.createDataChannel('demo-data');
-        loopbackHostChannel.onmessage = (ev) => {
-          try {
-            const msg = JSON.parse(ev.data);
-            if (msg.type === 'ping') {
-              loopbackHostChannel.send(JSON.stringify({ type: 'pong', timestamp: msg.timestamp }));
-            } else if (msg.type === 'chat') {
-              setTimeout(() => {
-                if (loopbackHostChannel && loopbackHostChannel.readyState === 'open') {
-                  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                  loopbackHostChannel.send(JSON.stringify({
-                    type: 'chat',
-                    sender: 'Cliente (Demo)',
-                    text: 'Recebi sua mensagem: "' + msg.text + '"',
-                    timestamp: timeStr
-                  }));
-                }
-              }, 700);
-            }
-          } catch (e) {}
-        };
-
-        nativePeerConn.ondatachannel = (ev) => {
-          setupNativeDataChannel(ev.channel);
-        };
-        nativePeerConn.ontrack = (ev) => {
-          if (ev.streams && ev.streams[0]) {
-            attachRemoteStream(ev.streams[0], "Ao Vivo (Demo WebRTC)");
-          }
-        };
-
-        const offer = await loopbackHostPC.createOffer();
-        await loopbackHostPC.setLocalDescription(offer);
-        await nativePeerConn.setRemoteDescription(offer);
-        const answer = await nativePeerConn.createAnswer();
-        await nativePeerConn.setLocalDescription(answer);
-        await loopbackHostPC.setRemoteDescription(answer);
-
-        switchToLiveView('TÉCNICO (DEMO)', 'DEMO-01');
-        document.getElementById('techToolbar').classList.remove('hidden');
-        document.getElementById('techClickCapture').classList.remove('hidden');
-        document.getElementById('quickMacrosContainer').classList.remove('hidden');
-        setTechTool('pointer');
-        showToast("Demo WebRTC iniciada! Teste o Ponteiro Guia, Desenho, Tela Cheia e Chat.", "success");
-      } catch (err) {
-        console.error(err);
-        showToast("Erro ao iniciar Demo Integrada.", "error");
-      }
-    };
-
     function setupNativeDataChannel(channel) {
       nativeDataChannel = channel;
       channel.onopen = () => {
@@ -2142,7 +2059,7 @@ try {
     }
 
     // -------------------------------------------------------------
-    // 9. MAPEAMENTO PRECISO DE COORDENADAS, PONTEIRO E DESENHO
+    // 8. MAPEAMENTO PRECISO DE COORDENADAS, PONTEIRO E DESENHO
     // -------------------------------------------------------------
     function getVideoContentRect() {
       const videoEl = document.getElementById('remoteVideo');
@@ -2367,7 +2284,7 @@ try {
     }
 
     // -------------------------------------------------------------
-    // 10. MODO LOCAL (BROADCASTCHANNEL) E MANUAL SDP
+    // 9. MODO LOCAL (BROADCASTCHANNEL) E MANUAL SDP
     // -------------------------------------------------------------
     function setupBroadcastChannel() {
       if (broadcastChannel) broadcastChannel.close();
@@ -2474,7 +2391,7 @@ try {
     };
 
     // -------------------------------------------------------------
-    // 11. CHAT, TELA SIMULADA, SCREENSHOT E UTILITÁRIOS
+    // 10. CHAT, SCREENSHOT, TELA CHEIA E UTILITÁRIOS
     // -------------------------------------------------------------
     window.handleChatSubmit = function(e) {
       e.preventDefault();
@@ -2505,66 +2422,6 @@ try {
       `;
       box.appendChild(wrap);
       box.scrollTop = box.scrollHeight;
-    }
-
-    function createSimulatedCanvasStream() {
-      const canvas = document.createElement('canvas');
-      canvas.width = 1280;
-      canvas.height = 720;
-      const ctx = canvas.getContext('2d');
-      let t = 0;
-
-      setInterval(() => {
-        t += 0.03;
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Barra superior simulada
-        ctx.fillStyle = '#1e293b';
-        ctx.fillRect(0, 0, canvas.width, 48);
-        ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 18px Inter, sans-serif';
-        ctx.fillText('Área de Trabalho Simulada — Acesso Remoto Ottimize', 24, 30);
-
-        // Cartão central animado
-        ctx.fillStyle = '#1e293b';
-        ctx.beginPath();
-        ctx.roundRect(140, 120, 1000, 480, 20);
-        ctx.fill();
-
-        ctx.fillStyle = '#f8fafc';
-        ctx.font = 'bold 34px Inter, sans-serif';
-        ctx.fillText('Transmissão WebRTC P2P em Tempo Real', 200, 210);
-
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '20px Inter, sans-serif';
-        ctx.fillText('Horário do Cliente: ' + new Date().toLocaleTimeString(), 200, 260);
-
-        // Botões fictícios para teste de ponteiro
-        ctx.fillStyle = '#0284c7';
-        ctx.beginPath();
-        ctx.roundRect(200, 320, 260, 64, 12);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 20px Inter, sans-serif';
-        ctx.fillText('Configurações de Rede', 225, 358);
-
-        ctx.fillStyle = '#10b981';
-        ctx.beginPath();
-        ctx.roundRect(500, 320, 260, 64, 12);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText('Atualizar Sistema', 545, 358);
-
-        // Indicador animado de FPS
-        const cx = 220 + Math.sin(t) * 140 + 140;
-        ctx.fillStyle = '#38bdf8';
-        ctx.beginPath();
-        ctx.arc(cx, 500, 14, 0, Math.PI * 2);
-        ctx.fill();
-      }, 33);
-
-      return canvas.captureStream(30);
     }
 
     window.toggleVideoFit = function() {
@@ -2684,8 +2541,6 @@ try {
       if (localMediaStream) { localMediaStream.getTracks().forEach(t => t.stop()); localMediaStream = null; }
       if (nativeDataChannel) { try { nativeDataChannel.close(); } catch(e){} nativeDataChannel = null; }
       if (nativePeerConn) { try { nativePeerConn.close(); } catch(e){} nativePeerConn = null; }
-      if (loopbackHostChannel) { try { loopbackHostChannel.close(); } catch(e){} loopbackHostChannel = null; }
-      if (loopbackHostPC) { try { loopbackHostPC.close(); } catch(e){} loopbackHostPC = null; }
 
       isRemoteBridgeOnline = false;
       clearRemoteDrawings(false);
