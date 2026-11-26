@@ -1512,7 +1512,7 @@ try {
       if (!dot || !txt) return;
       if (state === 'online') {
         dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse";
-        txt.innerText = customText || "Nuvem: Online";
+        txt.innerText = customText || "Nuvem Ottimize: Online";
       } else if (state === 'connecting') {
         dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
         txt.innerText = customText || "Conectando Nuvem...";
@@ -1558,7 +1558,7 @@ try {
           if (peer !== currentPeer) return;
           clearPeerTimers();
           peerRetryCount = 0;
-          setCloudStatusUI('online', 'Nuvem: Online');
+          setCloudStatusUI('online', 'Nuvem Ottimize: Online');
         });
 
         currentPeer.on('connection', (conn) => {
@@ -1685,7 +1685,7 @@ try {
 
           hostPeer.on('open', () => {
             if (peer !== hostPeer) return;
-            setCloudStatusUI('online', 'Nuvem: Online');
+            setCloudStatusUI('online', 'Nuvem Ottimize: Online');
             addConnLog(`Sala ${generatedClientCode} registrada na Nuvem (Relay: ${turnSettings.forceRelay ? 'SIM' : 'AUTO'}).`, 'ok');
             showToast(`Sala ${generatedClientCode} pronta na Nuvem! Aguardando técnico...`, "success");
           });
